@@ -114,6 +114,22 @@
     <div class="card">
       <label class="big">📄 Elegir PDF de etiquetas<input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden></label>
       <div class="mut" style="margin-top:8px">Se leen los números de envío del PDF y se mandan a la PC que tenga abierto Places: los escanea sola y acá ves el resultado.</div>
+      <details style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">📲 Mandar el PDF directo desde WhatsApp (iPhone)</summary>
+        <div style="font-size:14px;line-height:1.5;margin-top:8px">
+          <b>Se arma una sola vez</b> (app <b>Atajos</b> del iPhone):
+          <ol style="padding-left:20px;margin:6px 0">
+            <li>Atajos → <b>+</b> (nuevo atajo). Arriba, nombre: <b>Centro</b>.</li>
+            <li>Tocá <b>ⓘ</b> (o la flechita del nombre) → activá <b>Mostrar en hoja para compartir</b>. Arriba donde dice "Recibir <i>Cualquiera</i>", dejá solo <b>PDF</b> / Archivos.</li>
+            <li>Agregá la acción <b>Obtener contenido de URL</b>:
+              <ul style="padding-left:18px">
+                <li>URL: <code id="urlAtajo" style="word-break:break-all;background:#f1f3f5;padding:1px 4px;border-radius:4px"></code> <button class="btn" id="copAtajo" style="padding:2px 8px;font-size:12px">Copiar</button></li>
+                <li>Tocá la flechita → Método: <b>POST</b> · Cuerpo de la solicitud: <b>Archivo</b> → Archivo: <b>Entrada del atajo</b>.</li>
+              </ul></li>
+            <li>Agregá la acción <b>Mostrar notificación</b> con el <b>Contenido de la URL</b> (dice "Listo: PDF enviado…").</li>
+          </ol>
+          <b>Cada vez:</b> en WhatsApp abrís el PDF → botón compartir <b>⬆</b> → <b>Centro</b>. Después abrís esta app y te pregunta si confirmás.
+        </div>
+      </details>
     </div>
     <div class="card" id="pdfRes" hidden></div>
     <div class="mut" style="margin:4px 4px 6px;font-weight:700;text-transform:uppercase;font-size:12px">Resultados</div>
@@ -190,12 +206,19 @@ function pintarPcs() {
 /* ---------- RECIBIDOS (principal) ---------- */
 let REC = [], recDia = 0, recFiltro = '', recBusca = '', recAbiertas = new Set(ls.get('cen-abiertas', [])), recVistos = null;
 const inicioDia = (n) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n); return d.getTime(); };
-let STOCK_ACT = 0, STOCK_PC = '';
+let STOCK_ACT = 0, STOCK_PC = '', PEDIDO = 0, ultPedido = 0;
+// al entrar (o volver a la app) se le pide a la PC con Places abierto que lea la colecta YA
+async function pedirActualizar(forzar) {
+  if (!forzar && Date.now() - ultPedido < 60000) return;
+  ultPedido = Date.now();
+  try { const j = await api('places/pedir', {}); PEDIDO = j.pedido; } catch (_) {}
+}
 async function cargarRec() {
   try {
     let lista;
     if (tab === 'cen') {                     // lo que todavía está en el centro (lista de la colecta que sube la PC)
-      const j = await api('places/stock'); AHORA = j.ahora;
+      if (!STOCK_ACT || Date.now() - STOCK_ACT > 60000) await pedirActualizar(false);
+      const j = await api('places/stock'); AHORA = j.ahora; PEDIDO = Math.max(PEDIDO, j.pedido || 0);
       const st = j.stock.find(x => x.tipo === 'collect') || j.stock[0] || null;
       STOCK_ACT = st ? st.actualizado : 0; STOCK_PC = st ? st.pc : '';
       lista = (st ? st.lista : []).filter(x => x.id).map(x => ({ id: x.id, t: x.t || 0, prov: x.prov, tipo: x.tipo })).sort((a, b) => b.t - a.t);
@@ -237,7 +260,10 @@ function pintarRec() {
           '<div class="kpi"><b>' + (viejo && viejo.t ? (diasAtras(viejo.t) ? diaTxt(viejo.t) : hhmm(viejo.t)) : '—') + '</b><span>el más viejo</span></div>' +
           '<div class="kpi"><b>' + (ultimo && ultimo.t ? hhmm(ultimo.t) : '—') + '</b><span>último ingreso</span></div></div>' +
         '<input type="search" id="recBusca" placeholder="Buscar número (ej. los últimos 4)…" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">' +
-        '<div class="mut" style="margin-top:6px">🔄 Actualizado ' + hace(STOCK_ACT, AHORA) + ' · la PC con Places abierto lo revisa sola cada 3 min</div>';
+        (PEDIDO > STOCK_ACT && AHORA - PEDIDO < 180000
+          ? '<div style="margin-top:6px;color:var(--az);font-weight:700">⏳ Pidiendo a la PC que actualice… (≈ 1 min) · último: ' + hace(STOCK_ACT, AHORA) + '</div>'
+          : '<div class="mut" style="margin-top:6px">🔄 Actualizado ' + hace(STOCK_ACT, AHORA) + ' <button class="btn" id="actYa" style="padding:3px 9px;font-size:12px;margin-left:6px">Actualizar ya</button></div>' +
+            (PEDIDO > STOCK_ACT ? '<div style="margin-top:4px;color:var(--nar);font-size:13px">⚠ La PC no respondió: tiene que estar con Places abierto AL FRENTE (no minimizado) y con el Lector QR 5.12.</div>' : ''));
   } else
   $('#recCab').innerHTML =
     '<div class="dias"><button data-d="1">‹</button><b>' + titulo + '</b><button data-d="-1"' + (recDia === 0 ? ' disabled' : '') + '>›</button></div>' +
@@ -246,6 +272,7 @@ function pintarRec() {
       '<div class="kpi"><b>' + (ultimo ? hhmm(ultimo.t) : '—') + '</b><span>último' + (ultimo && recDia === 0 ? ' · ' + hace(ultimo.t, AHORA).replace('hace ', '') : '') + '</span></div></div>' +
     '<input type="search" id="recBusca" placeholder="Buscar número (ej. los últimos 4)…" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">' +
     (recDia === 0 ? '<div class="mut" style="margin-top:6px">🔄 Se actualiza solo cada 10 s</div>' : '');
+  if ($('#actYa')) $('#actYa').onclick = async () => { await pedirActualizar(true); cargarRec(); };
   if (!$('#recBusca')) { $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; return; }
   $('#recCab').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { recDia = Math.max(0, recDia + +b.dataset.d); recVistos = null; REC = []; cargarRec(); });
   $('#recBusca').oninput = (e) => { recBusca = e.target.value.replace(/\s/g, ''); pintarTandas(); };
@@ -359,7 +386,9 @@ async function idsDelPdf(file) {
 let PDF = null;   // { nombre, envios:[{id,rem}], paginas, malos }
 $('#pdfIn').onchange = async (e) => {
   const files = [...e.target.files]; e.target.value = '';
-  if (!files.length) return;
+  if (files.length) leerArchivos(files, 0);
+};
+async function leerArchivos(files, compartido) {
   $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">Leyendo el PDF…</div>';
   let envios = [], paginas = 0; const malos = [];
   for (const f of files) {
@@ -367,14 +396,40 @@ $('#pdfIn').onchange = async (e) => {
     catch (err) { malos.push(f.name + ' (' + err.message + ')'); }
   }
   const vistos = new Set(); envios = envios.filter(x => !vistos.has(x.id) && vistos.add(x.id));
-  PDF = { nombre: files.map(f => f.name.replace(/\.pdf$/i, '')).join(' + '), envios, paginas, malos };
+  PDF = { nombre: files.map(f => f.name.replace(/\.pdf$/i, '')).join(' + '), envios, paginas, malos, compartido };
   let ap = { apodos: {}, nombres: [] };
   try { ap = await api('places/apodos'); } catch (_) {}
   pintarPdf(ap);
-};
+}
+// PDF compartido desde WhatsApp con el atajo del iPhone: queda en la nube hasta que se confirma o descarta
+let buscandoCompartido = false;
+async function revisarCompartidos() {
+  if (PDF || buscandoCompartido) return;
+  buscandoCompartido = true;
+  try {
+    const j = await api('places/pdfs');
+    const p = (j.pdfs || [])[0]; if (!p || PDF) return;
+    if (tab !== 'pdf') verTab('pdf');
+    $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📲 Llegó un PDF compartido, leyéndolo…</div>';
+    const r = await fetch(API + 'places/pdf?id=' + p.id, { headers: { 'X-Clave': clave() } });
+    if (!r.ok) throw new Error('no se pudo bajar');
+    const d = new Date(p.creado);
+    const f = new File([await r.blob()], 'Compartido ' + hhmm(p.creado) + ' ' + d.getDate() + '-' + (d.getMonth() + 1) + '.pdf', { type: 'application/pdf' });
+    await leerArchivos([f], p.id);
+  } catch (e) { $('#pdfRes').innerHTML = '<div class="vacio">⚠ PDF compartido: ' + esc(e.message) + '</div>'; }
+  finally { buscandoCompartido = false; }
+}
+async function descartarCompartido() {
+  if (PDF && PDF.compartido) { try { await api('places/pdf-borrar', { id: PDF.compartido }); } catch (_) {} }
+}
 function pintarPdf(ap) {
   const P = PDF;
-  if (!P.envios.length) { $('#pdfRes').innerHTML = '<div class="vacio">⚠ No encontré números de envío en ' + esc(P.malos.join(', ') || 'el PDF') + '.</div>'; return; }
+  if (!P.envios.length) {
+    $('#pdfRes').innerHTML = '<div class="vacio">⚠ No encontré números de envío en ' + esc(P.malos.join(', ') || 'el PDF') + '.</div>' +
+      '<button class="btn" id="descartar" style="width:100%;margin-top:8px">Cerrar</button>';
+    $('#descartar').onclick = async () => { await descartarCompartido(); PDF = null; $('#pdfRes').hidden = true; };
+    return;
+  }
   const porRem = {}; P.envios.forEach(x => { porRem[x.rem] = (porRem[x.rem] || 0) + 1; });
   const rems = Object.keys(porRem).sort((a, b) => porRem[b] - porRem[a]);
   const online = pcsOnline().length;
@@ -390,6 +445,8 @@ function pintarPdf(ap) {
     (online ? '<div class="mut" style="margin-top:6px;text-align:center">🟢 Hay ' + online + ' PC con Places abierto: arranca enseguida.</div>'
             : '<div style="margin-top:6px;text-align:center;color:var(--nar);font-size:13px">🔴 Ahora no hay ninguna PC con Places abierto. Queda esperando y se escanea cuando se abra.</div>');
   $('#enviar').onclick = confirmarEnvio;
+  $('#pdfRes').insertAdjacentHTML('beforeend', '<button class="btn" id="descartar" style="width:100%;margin-top:10px">✕ Descartar este PDF</button>');
+  $('#descartar').onclick = async () => { if (!confirm('¿Descartar este PDF sin mandarlo?')) return; await descartarCompartido(); PDF = null; $('#pdfRes').hidden = true; };
 }
 function confirmarEnvio() {
   const n = PDF.envios.length;
@@ -407,6 +464,7 @@ function confirmarEnvio() {
       });
       if (cambios.length) await api('prov', { cambios, pc: 'app-centro' });
       await api('places/trabajo', { nombre: PDF.nombre, envios: PDF.envios });
+      await descartarCompartido();             // el compartido ya se mandó: sale de la nube
       PDF = null; $('#pdfRes').hidden = true;
       verTab('pdf');
     } catch (e) { alert('No se pudo mandar: ' + e.message); $('#enviar').disabled = false; $('#enviar').textContent = '📲 Mandar ' + n + ' envíos a la PC'; }
@@ -496,6 +554,7 @@ async function refrescar() {
   if (!clave()) { if (!pedirClave()) return; }
   if (!Object.keys(APODOS).length) api('places/apodos').then(j => { APODOS = j.apodos; }).catch(() => {});
   await cargarRes();                    // trae también las PCs conectadas
+  revisarCompartidos();
   if (tab === 'cen' || tab === 'rec') await cargarRec();
 }
 let timer = null;
@@ -512,8 +571,12 @@ let pedidoInstalar = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e; $('#instalar').hidden = false; });
 $('#instalar').onclick = async () => { if (!pedidoInstalar) return; pedidoInstalar.prompt(); await pedidoInstalar.userChoice; pedidoInstalar = null; $('#instalar').hidden = true; };
 
+const urlAtajo = () => API + 'places/pdf?clave=' + encodeURIComponent(clave());
+$('#pdfIn').closest('.card').querySelector('details').ontoggle = () => { $('#urlAtajo').textContent = urlAtajo(); };
+$('#copAtajo').onclick = () => { navigator.clipboard.writeText(urlAtajo()).then(() => { $('#copAtajo').textContent = '✓ Copiado'; }); };
 verTab(tab);
 programar();
+setTimeout(revisarCompartidos, 800);
 </script>
 </body>
 </html>
