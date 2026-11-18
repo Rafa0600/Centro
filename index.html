@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffe600">
+<title>Centro de envío</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root { --bg:#f2f3f5; --card:#fff; --tx:#1d1d1f; --mut:#6b7280; --bd:#e6e8eb; --az:#3483fa; --ok:#2e7d32; --mal:#c62828; --nar:#e65100; --am:#ffe600; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { background:var(--am); padding:10px 16px 0; position:sticky; top:0; z-index:5; }
+  .top { display:flex; align-items:center; gap:8px; }
+  .top b { font-size:18px; flex:1; }
+  .top button { border:0; background:rgba(0,0,0,.08); border-radius:8px; padding:6px 10px; font:600 13px system-ui,sans-serif; color:#1d1d1f; cursor:pointer; }
+  #pcs { font-size:12px; margin-top:4px; color:#444; display:flex; gap:6px; flex-wrap:wrap; }
+  #pcs span { background:rgba(255,255,255,.6); border-radius:10px; padding:2px 8px; }
+  nav { display:flex; margin-top:8px; }
+  nav button { flex:1; border:0; background:none; padding:9px 4px 10px; font:600 14px system-ui,sans-serif; color:#555; border-bottom:3px solid transparent; cursor:pointer; }
+  nav button.on { color:#1d1d1f; border-bottom-color:#1d1d1f; }
+  nav button i { font-style:normal; background:#1d1d1f; color:#fff; border-radius:9px; padding:0 6px; font-size:11px; margin-left:4px; }
+  main { max-width:720px; margin:0 auto; padding:12px 16px 40px; }
+  .card { background:var(--card); border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
+  .mut { color:var(--mut); font-size:13px; }
+  .big { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:0; border-radius:14px; padding:18px; background:var(--az); color:#fff; font:700 17px system-ui,sans-serif; cursor:pointer; }
+  .big.ok { background:var(--ok); }
+  .btn { border:1px solid var(--bd); background:#fff; border-radius:10px; padding:8px 12px; font:600 14px system-ui,sans-serif; cursor:pointer; color:var(--tx); }
+  .btn.rojo { color:var(--mal); border-color:#f3c4c4; }
+  input[type=text], input[type=search] { width:100%; border:1px solid var(--bd); border-radius:10px; padding:9px 11px; font:15px system-ui,sans-serif; background:#fff; color:var(--tx); }
+  .provs { display:flex; flex-direction:column; }
+  .prov { display:flex; align-items:center; gap:9px; padding:8px 4px; border-top:1px solid var(--bd); cursor:pointer; }
+  .prov:first-child { border-top:0; }
+  .prov.sel { background:#e8f0fe; border-radius:8px; }
+  .prov i { width:10px; height:10px; border-radius:50%; flex:0 0 10px; }
+  .prov em { font-style:normal; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .prov b { font-variant-numeric:tabular-nums; }
+  .fila { display:flex; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--bd); font-size:14px; }
+  .fila:first-child { border-top:0; }
+  .fila .n { font:500 14px ui-monospace,Consolas,monospace; }
+  .fila .n b { font-size:16px; }
+  .fila .t { color:var(--mut); font-size:12px; }
+  .fila .p { margin-left:auto; color:#fff; border-radius:12px; padding:2px 9px; font-size:12px; font-weight:700; white-space:nowrap; max-width:42%; overflow:hidden; text-overflow:ellipsis; }
+  .fila .h { color:var(--mut); font-size:12px; white-space:nowrap; text-align:right; min-width:64px; }
+  .fila .h.viejo { color:var(--nar); font-weight:700; }
+  .rem { display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--bd); }
+  .rem input { flex:1; }
+  .trab { border-top:1px solid var(--bd); padding:10px 0; cursor:pointer; }
+  .trab:first-child { border-top:0; }
+  .trab .l1 { display:flex; align-items:center; gap:8px; }
+  .trab .l1 b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .est { border-radius:10px; padding:2px 9px; font-size:12px; font-weight:700; white-space:nowrap; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .chip { border-radius:10px; padding:2px 8px; font-size:12px; font-weight:700; }
+  .barra { height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden; margin-top:6px; }
+  .barra div { height:100%; background:var(--az); transition:width .4s; }
+  .det { margin-top:8px; background:#f8f9fb; border-radius:10px; padding:4px 10px; }
+  .vacio { text-align:center; color:var(--mut); padding:20px 0; }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:none; align-items:center; justify-content:center; padding:16px; }
+  #modal > div { background:#fff; border-radius:16px; padding:20px; max-width:420px; width:100%; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><b>🏬 Centro de envío</b><button id="instalar" hidden>⬇ Instalar</button><button id="cfg" title="Clave">⚙</button></div>
+  <div id="pcs"></div>
+  <nav>
+    <button data-tab="pend" class="on">📦 Pendientes</button>
+    <button data-tab="pdf">📄 Cargar PDF</button>
+    <button data-tab="res">📋 Resultados<i id="activos" hidden></i></button>
+  </nav>
+</header>
+<main>
+  <!-- PENDIENTES (lista "Paquetes para la colecta" que sube la PC) -->
+  <section id="t-pend">
+    <div class="card" id="pendInfo"><div class="vacio">Cargando…</div></div>
+    <div class="card" id="pendProvs" hidden></div>
+    <div class="card" id="pendLista" hidden></div>
+  </section>
+
+  <!-- CARGAR PDF -->
+  <section id="t-pdf" hidden>
+    <div class="card">
+      <label class="big">📄 Elegir PDF de etiquetas<input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden></label>
+      <div class="mut" style="margin-top:8px">Se leen los números de envío del PDF y se mandan a la PC que tenga abierto Places: los escanea sola y acá ves el resultado.</div>
+    </div>
+    <div class="card" id="pdfRes" hidden></div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section id="t-res" hidden>
+    <div class="card" id="resLista"><div class="vacio">Cargando…</div></div>
+  </section>
+</main>
+<div id="modal"><div></div></div>
+
+<script>
+const API = 'https://mikra-historial.rafaelassir.workers.dev/api/';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// el repo es público: la clave NO va en el código; se pide una vez y queda guardada
+const clave = () => ls.get('cen-clave', '') || ls.get('flt-clave', '');
+function pedirClave(msg) {
+  const k = prompt(msg || 'Clave del Centro de envío (la misma del Lector QR). Se pide una sola vez:');
+  if (k && k.trim()) { ls.set('cen-clave', k.trim()); return true; }
+  return false;
+}
+async function api(ruta, body) {
+  if (!clave() && !pedirClave()) throw new Error('Falta la clave');
+  const r = await fetch(API + ruta, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'X-Clave': clave(), 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (r.status === 401) { ls.set('cen-clave', ''); throw new Error('Clave incorrecta (⚙ arriba)'); }
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'error');
+  return j;
+}
+$('#cfg').onclick = () => { if (pedirClave('Cambiar la clave:')) refrescar(); };
+
+/* ---------- utilidades ---------- */
+const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'], MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const hhmm = (t) => { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function diasAtras(t) { const h = new Date(); h.setHours(0, 0, 0, 0); const d = new Date(t); d.setHours(0, 0, 0, 0); return Math.round((h - d) / 86400000); }
+function diaTxt(t) { const n = diasAtras(t), d = new Date(t); return n === 0 ? 'Hoy' : n === 1 ? 'Ayer' : DIAS[d.getDay()] + ' ' + d.getDate() + ' ' + MES[d.getMonth()]; }
+function hace(t, ahora) {
+  const s = Math.max(0, Math.round(((ahora || Date.now()) - t) / 1000));
+  return s < 60 ? 'hace ' + s + ' s' : s < 3600 ? 'hace ' + Math.round(s / 60) + ' min' : s < 86400 ? 'hace ' + Math.round(s / 3600) + ' h' : diaTxt(t) + ' ' + hhmm(t);
+}
+function colorProv(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return 'hsl(' + h + ',55%,40%)'; }
+const numLindo = (n) => /^\d{11}$/.test(n) ? esc(n.slice(0, -4)) + '<b>' + n.slice(-4) + '</b>' : esc(n);
+
+/* ---------- pestañas ---------- */
+let tab = ls.get('cen-tab', 'pend');
+function verTab(t) {
+  tab = t; ls.set('cen-tab', t);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  ['pend', 'pdf', 'res'].forEach(x => { $('#t-' + x).hidden = x !== t; });
+  refrescar();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => verTab(b.dataset.tab));
+
+/* ---------- PCs conectadas (latido del script) ---------- */
+let PCS = [], AHORA = Date.now();
+function pcsOnline() { return PCS.filter(p => !/^__/.test(p.pc) && AHORA - p.visto < 70000); }
+function pintarPcs() {
+  const on = pcsOnline();
+  $('#pcs').innerHTML = on.length
+    ? on.map(p => '<span>🟢 ' + esc((p.url || '').split(' | ')[0] || p.pc) + (p.ocupado ? ' · escaneando' : ' · libre') + '</span>').join('')
+    : '<span>🔴 Ninguna PC con Places abierto (lo que mandes queda esperando)</span>';
+}
+
+/* ---------- PENDIENTES ---------- */
+let STOCK = null, filtro = '', busca = '';
+async function cargarPend() {
+  try {
+    const j = await api('places/stock'); AHORA = j.ahora;
+    STOCK = j.stock.find(s => s.tipo === 'collect') || j.stock[0] || null;
+    pintarPend();
+  } catch (e) { $('#pendInfo').innerHTML = '<div class="vacio">⚠ ' + esc(e.message) + '</div>'; }
+}
+function pintarPend() {
+  if (!STOCK) {
+    $('#pendInfo').innerHTML = '<div class="vacio">Todavía no hay datos. Abrí <b>🚚 Colecta</b> en la PC (Places) y se suben solos.</div>';
+    $('#pendProvs').hidden = $('#pendLista').hidden = true; return;
+  }
+  const L = STOCK.lista;
+  const cuenta = new Map();
+  L.forEach(x => { const k = x.prov || (/^M/.test(x.id) ? 'Devoluciones' : 'Sin dato'); cuenta.set(k, (cuenta.get(k) || 0) + 1); });
+  const ult = (k) => k === 'Sin dato' ? 2 : k === 'Devoluciones' ? 1 : 0;
+  const ks = [...cuenta.keys()].sort((a, b) => ult(a) - ult(b) || cuenta.get(b) - cuenta.get(a));
+  const colorK = (k) => k === 'Sin dato' ? '#90a4ae' : k === 'Devoluciones' ? '#8d6e63' : colorProv(k);
+  $('#pendInfo').innerHTML = '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:22px">' + L.length + '</b><span>paquetes para la colecta</span></div>' +
+    '<div class="mut">Actualizado ' + hace(STOCK.actualizado, AHORA) + ' · se actualiza cuando alguien abre Colecta en la PC</div>' +
+    '<input type="search" id="busca" placeholder="Buscar por número (ej. los últimos 4)…" value="' + esc(busca) + '" style="margin-top:10px" inputmode="numeric">';
+  $('#busca').oninput = (e) => { busca = e.target.value.replace(/\s/g, ''); pintarLista(); };
+  $('#pendProvs').hidden = false;
+  $('#pendProvs').innerHTML = '<div class="provs">' +
+    '<div class="prov' + (filtro ? '' : ' sel') + '" data-p=""><i style="background:#3483fa"></i><em><b>Todos</b></em><b>' + L.length + '</b></div>' +
+    ks.map(k => '<div class="prov' + (filtro === k ? ' sel' : '') + '" data-p="' + esc(k) + '"><i style="background:' + colorK(k) + '"></i><em>' + esc(k) + '</em><b>' + cuenta.get(k) + '</b></div>').join('') + '</div>';
+  $('#pendProvs').onclick = (e) => { const p = e.target.closest('[data-p]'); if (!p) return; filtro = filtro === p.dataset.p ? '' : p.dataset.p; pintarPend(); };
+  window.__colorK = colorK;
+  pintarLista();
+}
+function pintarLista() {
+  const colorK = window.__colorK;
+  const L = STOCK.lista.filter(x => {
+    const k = x.prov || (/^M/.test(x.id) ? 'Devoluciones' : 'Sin dato');
+    return (!filtro || filtro === k) && (!busca || x.id.includes(busca));
+  }).sort((a, b) => (a.t || 0) - (b.t || 0));
+  $('#pendLista').hidden = false;
+  $('#pendLista').innerHTML = L.length ? L.map(x => {
+    const k = x.prov || (/^M/.test(x.id) ? 'Devoluciones' : '');
+    const d = x.t ? diasAtras(x.t) : 0;
+    return '<div class="fila"><div><div class="n">' + numLindo(x.id) + '</div><div class="t">' + esc(x.tipo || '') + '</div></div>' +
+      (k ? '<span class="p" style="background:' + colorK(k) + '">' + esc(k) + '</span>' : '<span style="margin-left:auto"></span>') +
+      '<span class="h' + (d >= 2 ? ' viejo' : '') + '">' + (x.t ? diaTxt(x.t) + ' ' + hhmm(x.t) + (d >= 2 ? '<br>hace ' + d + ' días' : '') : '') + '</span></div>';
+  }).join('') : '<div class="vacio">Nada con ese filtro.</div>';
+}
+
+/* ---------- CARGAR PDF ---------- */
+// misma lectura que el Lector QR de la PC: 1 etiqueta por página, "Remitente #…" y el nº de envío
+async function idsDelPdf(file) {
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const ids = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const items = (await (await doc.getPage(p)).getTextContent()).items;
+    const ls = []; let cur = '';
+    for (const it of items) { cur += it.str || ''; if (it.hasEOL || it.str === '') { if (cur.trim()) ls.push(cur.trim()); cur = ''; } }
+    if (cur.trim()) ls.push(cur.trim());
+    let rem = '', buscar = false, antes = ids.length;
+    const once = (l) => { const c = l.replace(/\s/g, ''); return /^\d{11}$/.test(c) ? c : ''; };
+    ls.forEach((l, i) => {
+      const r = l.match(/Remitente\s*#\s*(\d{5,})/i);
+      if (r) { rem = r[1]; buscar = true; return; }
+      if (/Despachar/i.test(l)) buscar = true;
+      if (!buscar) return;
+      let c = once(l);
+      if (!c && i + 1 < ls.length && /^\d{4,7}$/.test(l.replace(/\s/g, ''))) c = once(l + ls[i + 1]);
+      if (c) { ids.push({ id: c, rem }); buscar = false; }
+    });
+    if (ids.length === antes) { const c = ls.map(once).find(Boolean); if (c) ids.push({ id: c, rem }); }
+  }
+  return { ids, paginas: doc.numPages };
+}
+let PDF = null;   // { nombre, envios:[{id,rem}], paginas, malos }
+$('#pdfIn').onchange = async (e) => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length) return;
+  $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">Leyendo el PDF…</div>';
+  let envios = [], paginas = 0; const malos = [];
+  for (const f of files) {
+    try { const r = await idsDelPdf(f); paginas += r.paginas; if (!r.ids.length) malos.push(f.name); envios = envios.concat(r.ids); }
+    catch (err) { malos.push(f.name + ' (' + err.message + ')'); }
+  }
+  const vistos = new Set(); envios = envios.filter(x => !vistos.has(x.id) && vistos.add(x.id));
+  PDF = { nombre: files.map(f => f.name.replace(/\.pdf$/i, '')).join(' + '), envios, paginas, malos };
+  let ap = { apodos: {}, nombres: [] };
+  try { ap = await api('places/apodos'); } catch (_) {}
+  pintarPdf(ap);
+};
+function pintarPdf(ap) {
+  const P = PDF;
+  if (!P.envios.length) { $('#pdfRes').innerHTML = '<div class="vacio">⚠ No encontré números de envío en ' + esc(P.malos.join(', ') || 'el PDF') + '.</div>'; return; }
+  const porRem = {}; P.envios.forEach(x => { porRem[x.rem] = (porRem[x.rem] || 0) + 1; });
+  const rems = Object.keys(porRem).sort((a, b) => porRem[b] - porRem[a]);
+  const online = pcsOnline().length;
+  $('#pdfRes').innerHTML =
+    '<div style="font-size:20px;font-weight:800">' + P.envios.length + ' envíos</div>' +
+    '<div class="mut">' + P.paginas + ' página' + (P.paginas === 1 ? '' : 's') + (P.paginas !== P.envios.length ? ' · ⚠ no coincide con la cantidad de envíos, revisá' : ' · 1 envío por página ✓') + '</div>' +
+    (P.malos.length ? '<div style="color:var(--nar);margin-top:4px">⚠ Sin envíos: ' + esc(P.malos.join(', ')) + '</div>' : '') +
+    '<div class="mut" style="margin:12px 0 2px;font-weight:700;text-transform:uppercase;font-size:12px">Proveedor de cada remitente</div>' +
+    rems.map(r => '<div class="rem"><div style="flex:0 0 120px"><b>' + (r ? '#' + esc(r) : 'Sin remitente') + '</b><div class="mut">' + porRem[r] + ' envío' + (porRem[r] === 1 ? '' : 's') + '</div></div>' +
+      (r ? '<input type="text" data-rem="' + esc(r) + '" list="noms" value="' + esc(ap.apodos[r] || '') + '" placeholder="Nombre del proveedor">' : '') + '</div>').join('') +
+    '<datalist id="noms">' + (ap.nombres || []).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>' +
+    '<button class="big ok" id="enviar" style="margin-top:14px">📲 Mandar ' + P.envios.length + ' envíos a la PC</button>' +
+    (online ? '<div class="mut" style="margin-top:6px;text-align:center">🟢 Hay ' + online + ' PC con Places abierto: arranca enseguida.</div>'
+            : '<div style="margin-top:6px;text-align:center;color:var(--nar);font-size:13px">🔴 Ahora no hay ninguna PC con Places abierto. Queda esperando y se escanea cuando se abra.</div>');
+  $('#enviar').onclick = confirmarEnvio;
+}
+function confirmarEnvio() {
+  const n = PDF.envios.length;
+  modal('<div style="font-size:19px;font-weight:800">¿Confirmar ' + n + ' envíos?</div>' +
+    '<div style="margin:10px 0 16px;color:#444">La PC los va a <b>recibir en el Centro de envío</b> uno por uno. <b>No se puede deshacer</b> lo que ya se escaneó.</div>' +
+    '<div style="display:flex;gap:8px"><button class="btn" data-m="no" style="flex:1">Cancelar</button>' +
+    '<button class="big ok" data-m="si" style="flex:2;padding:12px">Sí, confirmar ' + n + '</button></div>', async (q) => {
+    if (q !== 'si') return;
+    $('#enviar').disabled = true; $('#enviar').textContent = 'Mandando…';
+    try {
+      // nombres puestos a los remitentes → a la nube (los ven todas las PC)
+      const cambios = [];
+      document.querySelectorAll('#pdfRes input[data-rem]').forEach(i => {
+        const v = i.value.trim(); if (v) { cambios.push({ t: 'apodo', k: i.dataset.rem, v }); cambios.push({ t: 'nombre', k: v, v: '1' }); }
+      });
+      if (cambios.length) await api('prov', { cambios, pc: 'app-centro' });
+      await api('places/trabajo', { nombre: PDF.nombre, envios: PDF.envios });
+      PDF = null; $('#pdfRes').hidden = true;
+      verTab('res');
+    } catch (e) { alert('No se pudo mandar: ' + e.message); $('#enviar').disabled = false; $('#enviar').textContent = '📲 Mandar ' + n + ' envíos a la PC'; }
+  });
+}
+function modal(html, cb) {
+  $('#modal > div').innerHTML = html; $('#modal').style.display = 'flex';
+  $('#modal').onclick = (e) => {
+    const b = e.target.closest('[data-m]');
+    if (!b && e.target.id !== 'modal') return;
+    $('#modal').style.display = 'none'; cb(b ? b.dataset.m : 'no');
+  };
+}
+
+/* ---------- RESULTADOS ---------- */
+let TRAB = [], abierto = ls.get('cen-abierto', 0), APODOS = {};
+const EST = {
+  pendiente: ['⏳ Esperando una PC', '#fff3e0', '#e65100'],
+  tomado: ['▶ Escaneando', '#e3f2fd', '#1565c0'],
+  listo: ['✅ Terminado', '#e8f5e9', '#2e7d32'],
+  cancelado: ['✕ Cancelado', '#f5f5f5', '#616161'],
+};
+const RES = {
+  ok: ['OK', '#e8f5e9', '#2e7d32'], repetido: ['Ya escaneado', '#fff8e1', '#8d6e00'], cancelado: ['Cancelado — devolver', '#ffebee', '#c62828'],
+  otro: ['Error', '#ffebee', '#c62828'], sinrespuesta: ['Sin respuesta', '#ffebee', '#c62828'], ajeno: ['No es de ML', '#ffebee', '#c62828'],
+};
+async function cargarRes() {
+  try {
+    const j = await api('places/trabajos?n=40&detalle=' + abierto);
+    AHORA = j.ahora; PCS = j.pcs; TRAB = j.trabajos; pintarPcs(); pintarRes();
+  } catch (e) { $('#resLista').innerHTML = '<div class="vacio">⚠ ' + esc(e.message) + '</div>'; }
+}
+function pintarRes() {
+  const activos = TRAB.filter(t => t.estado === 'pendiente' || t.estado === 'tomado').length;
+  $('#activos').hidden = !activos; $('#activos').textContent = activos;
+  if (!TRAB.length) { $('#resLista').innerHTML = '<div class="vacio">Todavía no mandaste ningún PDF.</div>'; return; }
+  $('#resLista').innerHTML = TRAB.map(t => {
+    const [et, bg, fg] = t.estado === 'listo' && t.cancelar && t.hechos < t.total ? ['⏹ Frenado', '#f5f5f5', '#616161'] : EST[t.estado] || [t.estado, '#eee', '#333'];
+    const pct = Math.round((t.hechos || 0) * 100 / (t.total || 1));
+    const chips = Object.entries(t.cuenta || {}).sort((a, b) => (a[0] === 'ok' ? -1 : 1))
+      .map(([r, n]) => { const [txt, b2, f2] = RES[r] || [r, '#eee', '#333']; return '<span class="chip" style="background:' + b2 + ';color:' + f2 + '">' + txt + ' ' + n + '</span>'; }).join('');
+    let det = '';
+    if (t.id === abierto && t.res) {
+      const remDe = {}; (t.envios || []).forEach(e => { remDe[e.id] = e.rem; });
+      const malos = t.res.filter(r => r.r !== 'ok');
+      const faltan = (t.envios || []).filter(e => !t.res.some(r => r.id === e.id));
+      det = '<div class="det">' +
+        (malos.length ? malos.map(r => { const [txt, , f2] = RES[r.r] || [r.txt || r.r, '', '#c62828']; const pv = APODOS[remDe[r.id]] || '';
+          return '<div class="fila"><span class="n">' + numLindo(r.id) + '</span>' + (pv ? '<span class="t">' + esc(pv) + '</span>' : '') +
+            '<span class="h" style="color:' + f2 + ';font-weight:700;margin-left:auto">' + txt + '</span></div>'; }).join('')
+          : (t.estado === 'listo' ? '<div class="fila" style="color:var(--ok);font-weight:700">✓ Todos OK</div>' : '')) +
+        (faltan.length && t.estado !== 'listo' ? '<div class="mut" style="padding:6px 0">Faltan ' + faltan.length + ' por escanear</div>' : '') +
+        '</div>' +
+        ((t.estado === 'pendiente' || t.estado === 'tomado') && !t.cancelar ? '<button class="btn rojo" data-cancel="' + t.id + '" style="margin-top:8px">✕ Cancelar' + (t.estado === 'tomado' ? ' (frena lo que falta)' : '') + '</button>' : '') +
+        (t.estado === 'listo' || t.estado === 'cancelado' ? '<button class="btn" data-borrar="' + t.id + '" style="margin-top:8px">🗑 Borrar del historial</button>' : '');
+    }
+    return '<div class="trab" data-t="' + t.id + '"><div class="l1"><b>📄 ' + esc(t.nombre) + '</b><span class="est" style="background:' + bg + ';color:' + fg + '">' + et + (t.cancelar && t.estado === 'tomado' ? ' (frenando)' : '') + '</span></div>' +
+      '<div class="mut">' + diaTxt(t.creado) + ' ' + hhmm(t.creado) + ' · ' + t.total + ' envíos' + (t.pc ? ' · ' + esc(nombrePc(t.pc)) : '') +
+        (t.terminado ? ' · tardó ' + Math.max(1, Math.round((t.terminado - (t.tomado || t.creado)) / 60000)) + ' min' : '') + '</div>' +
+      (t.estado === 'tomado' || (t.estado !== 'pendiente' && t.hechos < t.total && t.hechos) ? '<div class="barra"><div style="width:' + pct + '%"></div></div><div class="mut">' + t.hechos + ' de ' + t.total + '</div>' : '') +
+      (chips ? '<div class="chips">' + chips + '</div>' : '') + det + '</div>';
+  }).join('');
+}
+const nombrePc = (pc) => { const p = PCS.find(x => x.pc === pc); return p ? (p.url || '').split(' | ')[0] || pc : pc; };
+$('#resLista').onclick = async (e) => {
+  const c = e.target.closest('[data-cancel]');
+  if (c) {
+    e.stopPropagation();
+    if (!confirm('¿Cancelar este envío a la PC?\nLo que ya se escaneó queda escaneado.')) return;
+    try { await api('places/cancelar', { id: +c.dataset.cancel }); } catch (err) { alert(err.message); }
+    cargarRes(); return;
+  }
+  const bo = e.target.closest('[data-borrar]');
+  if (bo) {
+    e.stopPropagation();
+    if (!confirm('¿Borrar este resultado del historial?')) return;
+    try { await api('places/borrar', { id: +bo.dataset.borrar }); } catch (err) { alert(err.message); }
+    cargarRes(); return;
+  }
+  const t = e.target.closest('[data-t]'); if (!t) return;
+  abierto = abierto === +t.dataset.t ? 0 : +t.dataset.t; ls.set('cen-abierto', abierto);
+  cargarRes();
+};
+
+/* ---------- refresco ---------- */
+async function refrescar() {
+  if (!clave()) { if (!pedirClave()) return; }
+  if (!Object.keys(APODOS).length) api('places/apodos').then(j => { APODOS = j.apodos; }).catch(() => {});
+  await cargarRes();                    // trae también las PCs conectadas
+  if (tab === 'pend') await cargarPend();
+}
+let timer = null;
+function programar() {
+  clearTimeout(timer);
+  const activo = TRAB.some(t => t.estado === 'pendiente' || t.estado === 'tomado');
+  timer = setTimeout(async () => { if (!document.hidden) await refrescar(); programar(); }, activo ? 4000 : 20000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar().then(programar); });
+
+/* ---------- instalar como app ---------- */
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('./sw.js').catch(() => {});
+let pedidoInstalar = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e; $('#instalar').hidden = false; });
+$('#instalar').onclick = async () => { if (!pedidoInstalar) return; pedidoInstalar.prompt(); await pedidoInstalar.userChoice; pedidoInstalar = null; $('#instalar').hidden = true; };
+
+verTab(tab);
+programar();
+</script>
+</body>
+</html>

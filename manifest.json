@@ -1,0 +1,16 @@
+{
+  "name": "Mikra Centro de envío",
+  "short_name": "Centro",
+  "description": "Centro de envío: pendientes de la colecta y PDF a escanear desde el celu",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f3f5",
+  "theme_color": "#ffe600",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
