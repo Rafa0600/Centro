@@ -62,6 +62,26 @@
   #modal { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:none; align-items:center; justify-content:center; padding:16px; }
   #modal > div { background:#fff; border-radius:16px; padding:20px; max-width:420px; width:100%; }
   [hidden] { display:none !important; }
+  .pchips { display:flex; flex-wrap:wrap; gap:6px; }
+  .pchips span { color:#fff; border-radius:14px; padding:4px 10px; font-size:13px; font-weight:600; cursor:pointer; user-select:none; }
+  .pchips span.off { opacity:.35; }
+  .dias { display:flex; align-items:center; gap:8px; }
+  .dias button { border:1px solid var(--bd); background:#fff; border-radius:10px; width:38px; height:36px; font-size:18px; cursor:pointer; }
+  .dias button:disabled { opacity:.3; }
+  .dias b { flex:1; text-align:center; font-size:17px; }
+  .kpis { display:flex; gap:8px; margin-top:10px; }
+  .kpi { flex:1; background:#f6f7f9; border-radius:10px; padding:8px 10px; }
+  .kpi b { display:block; font-size:22px; line-height:1.1; }
+  .kpi span { font-size:12px; color:var(--mut); }
+  .tanda { background:var(--card); border-radius:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.07); overflow:hidden; }
+  .tanda .cab { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; }
+  .tanda .cab .hr { font:700 16px system-ui,sans-serif; white-space:nowrap; }
+  .tanda .cab .cnt { margin-left:auto; font-weight:800; font-size:16px; }
+  .tanda .mini { display:flex; gap:4px; flex-wrap:wrap; flex:1; min-width:0; }
+  .tanda .mini span { color:#fff; border-radius:9px; padding:1px 7px; font-size:11px; font-weight:700; white-space:nowrap; }
+  .tanda .cuerpo { padding:0 14px 6px; border-top:1px solid var(--bd); }
+  .fila.nuevo { animation: nuevo 3s ease-out; }
+  @keyframes nuevo { from { background:#fff59d; } to { background:transparent; } }
 </style>
 </head>
 <body>
@@ -69,14 +89,21 @@
   <div class="top"><b>🏬 Centro de envío</b><button id="instalar" hidden>⬇ Instalar</button><button id="cfg" title="Clave">⚙</button></div>
   <div id="pcs"></div>
   <nav>
-    <button data-tab="pend" class="on">📦 Pendientes</button>
-    <button data-tab="pdf">📄 Cargar PDF</button>
-    <button data-tab="res">📋 Resultados<i id="activos" hidden></i></button>
+    <button data-tab="cen" class="on">📦 En el centro</button>
+    <button data-tab="rec">📥 Recibidos</button>
+    <button data-tab="pdf">📄 PDF<i id="activos" hidden></i></button>
   </nav>
 </header>
 <main>
+  <!-- RECIBIDOS (principal): todo lo que entró, con hora y proveedor, en vivo -->
+  <section id="t-rec">
+    <div class="card" id="recCab"><div class="vacio">Cargando…</div></div>
+    <div class="card" id="recProvs" hidden></div>
+    <div id="recTandas"></div>
+  </section>
+
   <!-- PENDIENTES (lista "Paquetes para la colecta" que sube la PC) -->
-  <section id="t-pend">
+  <section id="t-pend" hidden>
     <div class="card" id="pendInfo"><div class="vacio">Cargando…</div></div>
     <div class="card" id="pendProvs" hidden></div>
     <div class="card" id="pendLista" hidden></div>
@@ -89,10 +116,7 @@
       <div class="mut" style="margin-top:8px">Se leen los números de envío del PDF y se mandan a la PC que tenga abierto Places: los escanea sola y acá ves el resultado.</div>
     </div>
     <div class="card" id="pdfRes" hidden></div>
-  </section>
-
-  <!-- RESULTADOS -->
-  <section id="t-res" hidden>
+    <div class="mut" style="margin:4px 4px 6px;font-weight:700;text-transform:uppercase;font-size:12px">Resultados</div>
     <div class="card" id="resLista"><div class="vacio">Cargando…</div></div>
   </section>
 </main>
@@ -141,11 +165,14 @@ function colorProv(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.ch
 const numLindo = (n) => /^\d{11}$/.test(n) ? esc(n.slice(0, -4)) + '<b>' + n.slice(-4) + '</b>' : esc(n);
 
 /* ---------- pestañas ---------- */
-let tab = ls.get('cen-tab', 'pend');
+let tab = ls.get('cen-tab3', 'cen');
 function verTab(t) {
-  tab = t; ls.set('cen-tab', t);
+  if (t !== tab) { REC = []; recVistos = null; recFiltro = ''; recBusca = ''; }
+  tab = t; ls.set('cen-tab3', t);
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  ['pend', 'pdf', 'res'].forEach(x => { $('#t-' + x).hidden = x !== t; });
+  // "En el centro" y "Recibidos" usan la misma pantalla (tandas por hora y proveedor)
+  $('#t-rec').hidden = t === 'pdf'; $('#t-pend').hidden = true; $('#t-pdf').hidden = t !== 'pdf';
+  if (t !== 'pdf') { $('#recCab').innerHTML = '<div class="vacio">Cargando…</div>'; $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; }
   refrescar();
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => verTab(b.dataset.tab));
@@ -159,6 +186,102 @@ function pintarPcs() {
     ? on.map(p => '<span>🟢 ' + esc((p.url || '').split(' | ')[0] || p.pc) + (p.ocupado ? ' · escaneando' : ' · libre') + '</span>').join('')
     : '<span>🔴 Ninguna PC con Places abierto (lo que mandes queda esperando)</span>';
 }
+
+/* ---------- RECIBIDOS (principal) ---------- */
+let REC = [], recDia = 0, recFiltro = '', recBusca = '', recAbiertas = new Set(ls.get('cen-abiertas', [])), recVistos = null;
+const inicioDia = (n) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n); return d.getTime(); };
+let STOCK_ACT = 0, STOCK_PC = '';
+async function cargarRec() {
+  try {
+    let lista;
+    if (tab === 'cen') {                     // lo que todavía está en el centro (lista de la colecta que sube la PC)
+      const j = await api('places/stock'); AHORA = j.ahora;
+      const st = j.stock.find(x => x.tipo === 'collect') || j.stock[0] || null;
+      STOCK_ACT = st ? st.actualizado : 0; STOCK_PC = st ? st.pc : '';
+      lista = (st ? st.lista : []).filter(x => x.id).map(x => ({ id: x.id, t: x.t || 0, prov: x.prov, tipo: x.tipo })).sort((a, b) => b.t - a.t);
+    } else {
+      const j = await api('places/recibidos?desde=' + inicioDia(recDia) + '&hasta=' + inicioDia(recDia - 1));
+      AHORA = j.ahora; lista = j.lista;
+    }
+    const antes = recVistos; recVistos = new Set(lista.map(x => x.id));
+    REC = lista.map(x => ({ ...x, nuevo: antes && !antes.has(x.id) }));
+    pintarRec();
+  } catch (e) { $('#recCab').innerHTML = '<div class="vacio">⚠ ' + esc(e.message) + '</div>'; }
+}
+const provDe = (x) => x.prov || (/^M/.test(x.id) ? 'Devoluciones' : 'Sin proveedor');
+const colorRec = (k) => k === 'Sin proveedor' ? '#90a4ae' : k === 'Devoluciones' ? '#8d6e63' : colorProv(k);
+// tandas: paquetes con 10 min o menos entre uno y otro (igual que en 🕘 Recibidos de la PC)
+function tandas(L) {
+  const out = [];
+  for (const x of L) {                       // L viene de más nuevo a más viejo
+    const g = out[out.length - 1];
+    if (g && g.desde - x.t <= 10 * 60000) { g.items.push(x); g.desde = x.t; }
+    else out.push({ hasta: x.t, desde: x.t, items: [x] });
+  }
+  return out;
+}
+function pintarRec() {
+  const fecha = new Date(inicioDia(recDia));
+  const titulo = recDia === 0 ? 'Hoy' : recDia === 1 ? 'Ayer' : DIAS[fecha.getDay()] + ' ' + fecha.getDate() + ' ' + MES[fecha.getMonth()];
+  const cuenta = new Map();
+  REC.forEach(x => { const k = provDe(x); cuenta.set(k, (cuenta.get(k) || 0) + 1); });
+  const ult = (k) => k === 'Sin proveedor' ? 2 : k === 'Devoluciones' ? 1 : 0;
+  const ks = [...cuenta.keys()].sort((a, b) => ult(a) - ult(b) || cuenta.get(b) - cuenta.get(a));
+  const ultimo = REC[0];
+  if (tab === 'cen') {
+    const viejo = REC[REC.length - 1];
+    $('#recCab').innerHTML = !STOCK_ACT
+      ? '<div class="vacio">Todavía no hay datos: dejá Places abierto en una PC (con el Lector QR 5.8) y en unos minutos aparece solo.</div>'
+      : '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:26px">' + REC.length + '</b><span style="font-size:16px">paquetes en el centro</span></div>' +
+        '<div class="kpis"><div class="kpi"><b>' + ks.filter(k => k !== 'Sin proveedor' && k !== 'Devoluciones').length + '</b><span>proveedores</span></div>' +
+          '<div class="kpi"><b>' + (viejo && viejo.t ? (diasAtras(viejo.t) ? diaTxt(viejo.t) : hhmm(viejo.t)) : '—') + '</b><span>el más viejo</span></div>' +
+          '<div class="kpi"><b>' + (ultimo && ultimo.t ? hhmm(ultimo.t) : '—') + '</b><span>último ingreso</span></div></div>' +
+        '<input type="search" id="recBusca" placeholder="Buscar número (ej. los últimos 4)…" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">' +
+        '<div class="mut" style="margin-top:6px">🔄 Actualizado ' + hace(STOCK_ACT, AHORA) + ' · la PC con Places abierto lo revisa sola cada 3 min</div>';
+  } else
+  $('#recCab').innerHTML =
+    '<div class="dias"><button data-d="1">‹</button><b>' + titulo + '</b><button data-d="-1"' + (recDia === 0 ? ' disabled' : '') + '>›</button></div>' +
+    '<div class="kpis"><div class="kpi"><b>' + REC.length + '</b><span>recibidos</span></div>' +
+      '<div class="kpi"><b>' + (REC.length ? hhmm(REC[REC.length - 1].t) : '—') + '</b><span>primero</span></div>' +
+      '<div class="kpi"><b>' + (ultimo ? hhmm(ultimo.t) : '—') + '</b><span>último' + (ultimo && recDia === 0 ? ' · ' + hace(ultimo.t, AHORA).replace('hace ', '') : '') + '</span></div></div>' +
+    '<input type="search" id="recBusca" placeholder="Buscar número (ej. los últimos 4)…" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">' +
+    (recDia === 0 ? '<div class="mut" style="margin-top:6px">🔄 Se actualiza solo cada 10 s</div>' : '');
+  if (!$('#recBusca')) { $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; return; }
+  $('#recCab').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { recDia = Math.max(0, recDia + +b.dataset.d); recVistos = null; REC = []; cargarRec(); });
+  $('#recBusca').oninput = (e) => { recBusca = e.target.value.replace(/\s/g, ''); pintarTandas(); };
+  $('#recProvs').hidden = !REC.length;
+  $('#recProvs').innerHTML = '<div class="pchips">' +
+    '<span data-p="" class="' + (recFiltro ? 'off' : '') + '" style="background:#3483fa">Todos <b>' + REC.length + '</b></span>' +
+    ks.map(k => '<span data-p="' + esc(k) + '" class="' + (recFiltro && recFiltro !== k ? 'off' : '') + '" style="background:' + colorRec(k) + '">' + esc(k) + ' <b>' + cuenta.get(k) + '</b></span>').join('') + '</div>';
+  $('#recProvs').onclick = (e) => { const p = e.target.closest('[data-p]'); if (!p) return; recFiltro = recFiltro === p.dataset.p ? '' : p.dataset.p; pintarRec(); };
+  pintarTandas();
+}
+function pintarTandas() {
+  const L = REC.filter(x => (!recFiltro || provDe(x) === recFiltro) && (!recBusca || x.id.includes(recBusca)));
+  if (!L.length) { $('#recTandas').innerHTML = '<div class="card"><div class="vacio">' + (REC.length ? 'Nada con ese filtro.' : tab === 'cen' ? 'No queda nada en el centro.' : 'Todavía no se recibió nada este día.') + '</div></div>'; return; }
+  const ts = tandas(L);
+  $('#recTandas').innerHTML = ts.map((g, i) => {
+    const clave = g.desde + '';
+    const abierta = recAbiertas.has(clave) || (i === 0 && !recAbiertas.size) || !!recBusca;
+    const c = new Map(); g.items.forEach(x => { const k = provDe(x); c.set(k, (c.get(k) || 0) + 1); });
+    const mini = [...c.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => '<span style="background:' + colorRec(k) + '">' + esc(k) + ' ' + n + '</span>').join('');
+    const dd = g.desde ? diasAtras(g.desde) : 0;
+    return '<div class="tanda"><div class="cab" data-tanda="' + clave + '"><span class="hr"' + (dd >= 2 ? ' style="color:var(--nar)"' : '') + '>' +
+      (dd ? diaTxt(g.desde) + ' ' : '') + (g.desde ? hhmm(g.desde) + (g.desde !== g.hasta ? '–' + hhmm(g.hasta) : '') : 'Sin hora') + '</span>' +
+      '<span class="mini">' + mini + '</span><span class="cnt">' + g.items.length + '</span></div>' +
+      (abierta ? '<div class="cuerpo">' + g.items.map(x => { const k = provDe(x);
+        return '<div class="fila' + (x.nuevo ? ' nuevo' : '') + '"><span class="n">' + numLindo(x.id) + '</span>' +
+          '<span class="p" style="background:' + colorRec(k) + '">' + esc(k) + '</span><span class="h"><b style="color:var(--tx)">' + (x.t ? hhmm(x.t) : '') + '</b></span></div>'; }).join('') + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+$('#recTandas').onclick = (e) => {
+  const c = e.target.closest('[data-tanda]'); if (!c) return;
+  const k = c.dataset.tanda;
+  if (!recAbiertas.size) { const primera = document.querySelector('[data-tanda]'); if (primera) recAbiertas.add(primera.dataset.tanda); }
+  recAbiertas.has(k) ? recAbiertas.delete(k) : recAbiertas.add(k);
+  ls.set('cen-abiertas', [...recAbiertas].slice(-30)); pintarTandas();
+};
 
 /* ---------- PENDIENTES ---------- */
 let STOCK = null, filtro = '', busca = '';
@@ -285,7 +408,7 @@ function confirmarEnvio() {
       if (cambios.length) await api('prov', { cambios, pc: 'app-centro' });
       await api('places/trabajo', { nombre: PDF.nombre, envios: PDF.envios });
       PDF = null; $('#pdfRes').hidden = true;
-      verTab('res');
+      verTab('pdf');
     } catch (e) { alert('No se pudo mandar: ' + e.message); $('#enviar').disabled = false; $('#enviar').textContent = '📲 Mandar ' + n + ' envíos a la PC'; }
   });
 }
@@ -373,13 +496,13 @@ async function refrescar() {
   if (!clave()) { if (!pedirClave()) return; }
   if (!Object.keys(APODOS).length) api('places/apodos').then(j => { APODOS = j.apodos; }).catch(() => {});
   await cargarRes();                    // trae también las PCs conectadas
-  if (tab === 'pend') await cargarPend();
+  if (tab === 'cen' || tab === 'rec') await cargarRec();
 }
 let timer = null;
 function programar() {
   clearTimeout(timer);
   const activo = TRAB.some(t => t.estado === 'pendiente' || t.estado === 'tomado');
-  timer = setTimeout(async () => { if (!document.hidden) await refrescar(); programar(); }, activo ? 4000 : 20000);
+  timer = setTimeout(async () => { if (!document.hidden) await refrescar(); programar(); }, activo ? 4000 : tab === 'pdf' ? 20000 : 10000);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar().then(programar); });
 
