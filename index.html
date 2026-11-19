@@ -81,6 +81,25 @@
   .tanda .mini span { color:#fff; border-radius:9px; padding:1px 7px; font-size:11px; font-weight:700; white-space:nowrap; }
   .tanda .cuerpo { padding:0 14px 6px; border-top:1px solid var(--bd); }
   .fila.nuevo { animation: nuevo 3s ease-out; }
+  .sub { color:var(--mut); margin:4px 4px 6px; font-weight:700; text-transform:uppercase; font-size:12px; }
+  .aviso { border-radius:12px; padding:10px 12px; margin-top:10px; font-size:14px; line-height:1.4; }
+  .aviso.nar { background:#fff3e0; color:#8a3b00; }
+  .aviso.rojo { background:#ffebee; color:#9b1c1c; }
+  .aviso.verde { background:#e8f5e9; color:#1b5e20; }
+  .aviso b.g { font-size:16px; }
+  .tiles { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:12px 0; }
+  .tile { border-radius:12px; padding:10px 12px; }
+  .tile b { display:block; font-size:28px; line-height:1.05; }
+  .tile span { font-size:13px; font-weight:600; }
+  .curso { background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.07); border-left:5px solid var(--az); }
+  .curso .barra { height:12px; border-radius:6px; margin-top:10px; }
+  .curso .num { font-size:30px; font-weight:800; line-height:1; }
+  .lista-m { max-height:38vh; overflow:auto; background:#f8f9fb; border-radius:10px; padding:2px 10px; margin-top:6px; }
+  .trab:active { background:#f6f7f9; }
+  .ok-g { color:var(--ok); }
+  #modal > div { max-height:88vh; overflow:auto; }
+  .big:disabled { opacity:.6; }
+  .big.sec { background:#eef1f5; color:var(--tx); }
   @keyframes nuevo { from { background:#fff59d; } to { background:transparent; } }
 </style>
 </head>
@@ -102,37 +121,15 @@
     <div id="recTandas"></div>
   </section>
 
-  <!-- PENDIENTES (lista "Paquetes para la colecta" que sube la PC) -->
-  <section id="t-pend" hidden>
-    <div class="card" id="pendInfo"><div class="vacio">Cargando…</div></div>
-    <div class="card" id="pendProvs" hidden></div>
-    <div class="card" id="pendLista" hidden></div>
-  </section>
-
-  <!-- CARGAR PDF -->
+  <!-- MANDAR PDF -->
   <section id="t-pdf" hidden>
-    <div class="card">
+    <div id="enCurso"></div>
+    <div class="card" id="pdfElegir">
       <label class="big">📄 Elegir PDF de etiquetas<input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden></label>
-      <div class="mut" style="margin-top:8px">Se leen los números de envío del PDF y se mandan a la PC que tenga abierto Places: los escanea sola y acá ves el resultado.</div>
-      <details style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">📲 Mandar el PDF directo desde WhatsApp (iPhone)</summary>
-        <div style="font-size:14px;line-height:1.5;margin-top:8px">
-          <b>Se arma una sola vez</b> (app <b>Atajos</b> del iPhone):
-          <ol style="padding-left:20px;margin:6px 0">
-            <li>Atajos → <b>+</b> (nuevo atajo). Arriba, nombre: <b>Centro</b>.</li>
-            <li>Tocá <b>ⓘ</b> (o la flechita del nombre) → activá <b>Mostrar en hoja para compartir</b>. Arriba donde dice "Recibir <i>Cualquiera</i>", dejá solo <b>PDF</b> / Archivos.</li>
-            <li>Agregá la acción <b>Obtener contenido de URL</b>:
-              <ul style="padding-left:18px">
-                <li>URL: <code id="urlAtajo" style="word-break:break-all;background:#f1f3f5;padding:1px 4px;border-radius:4px"></code> <button class="btn" id="copAtajo" style="padding:2px 8px;font-size:12px">Copiar</button></li>
-                <li>Tocá la flechita → Método: <b>POST</b> · Cuerpo de la solicitud: <b>Archivo</b> → Archivo: <b>Entrada del atajo</b>.</li>
-              </ul></li>
-            <li>Agregá la acción <b>Mostrar notificación</b> con el <b>Contenido de la URL</b> (dice "Listo: PDF enviado…").</li>
-          </ol>
-          <b>Cada vez:</b> en WhatsApp abrís el PDF → botón compartir <b>⬆</b> → <b>Centro</b>. Después abrís esta app y te pregunta si confirmás.
-        </div>
-      </details>
+      <div class="mut" style="margin-top:8px;text-align:center">o desde WhatsApp: abrís el PDF → compartir ⬆ → <b>Centro</b></div>
     </div>
     <div class="card" id="pdfRes" hidden></div>
-    <div class="mut" style="margin:4px 4px 6px;font-weight:700;text-transform:uppercase;font-size:12px">Resultados</div>
+    <div class="sub">Mandados</div>
     <div class="card" id="resLista"><div class="vacio">Cargando…</div></div>
   </section>
 </main>
@@ -187,7 +184,7 @@ function verTab(t) {
   tab = t; ls.set('cen-tab3', t);
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   // "En el centro" y "Recibidos" usan la misma pantalla (tandas por hora y proveedor)
-  $('#t-rec').hidden = t === 'pdf'; $('#t-pend').hidden = true; $('#t-pdf').hidden = t !== 'pdf';
+  $('#t-rec').hidden = t === 'pdf'; $('#t-pdf').hidden = t !== 'pdf';
   if (t !== 'pdf') { $('#recCab').innerHTML = '<div class="vacio">Cargando…</div>'; $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; }
   refrescar();
 }
@@ -254,7 +251,7 @@ function pintarRec() {
   if (tab === 'cen') {
     const viejo = REC[REC.length - 1];
     $('#recCab').innerHTML = !STOCK_ACT
-      ? '<div class="vacio">Todavía no hay datos: dejá Places abierto en una PC (con el Lector QR 5.8) y en unos minutos aparece solo.</div>'
+      ? '<div class="vacio">Todavía no hay datos: dejá Places abierto en una PC y en unos minutos aparece solo.</div>'
       : '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:26px">' + REC.length + '</b><span style="font-size:16px">paquetes en el centro</span></div>' +
         '<div class="kpis"><div class="kpi"><b>' + ks.filter(k => k !== 'Sin proveedor' && k !== 'Devoluciones').length + '</b><span>proveedores</span></div>' +
           '<div class="kpi"><b>' + (viejo && viejo.t ? (diasAtras(viejo.t) ? diaTxt(viejo.t) : hhmm(viejo.t)) : '—') + '</b><span>el más viejo</span></div>' +
@@ -263,7 +260,7 @@ function pintarRec() {
         (PEDIDO > STOCK_ACT && AHORA - PEDIDO < 180000
           ? '<div style="margin-top:6px;color:var(--az);font-weight:700">⏳ Pidiendo a la PC que actualice… (≈ 1 min) · último: ' + hace(STOCK_ACT, AHORA) + '</div>'
           : '<div class="mut" style="margin-top:6px">🔄 Actualizado ' + hace(STOCK_ACT, AHORA) + ' <button class="btn" id="actYa" style="padding:3px 9px;font-size:12px;margin-left:6px">Actualizar ya</button></div>' +
-            (PEDIDO > STOCK_ACT ? '<div style="margin-top:4px;color:var(--nar);font-size:13px">⚠ La PC no respondió: tiene que estar con Places abierto AL FRENTE (no minimizado) y con el Lector QR 5.12.</div>' : ''));
+            (PEDIDO > STOCK_ACT ? '<div style="margin-top:4px;color:var(--nar);font-size:13px">⚠ La PC no respondió: tiene que estar con Places abierto AL FRENTE (no minimizado) y con el Lector QR al día.</div>' : ''));
   } else
   $('#recCab').innerHTML =
     '<div class="dias"><button data-d="1">‹</button><b>' + titulo + '</b><button data-d="-1"' + (recDia === 0 ? ' disabled' : '') + '>›</button></div>' +
@@ -310,54 +307,6 @@ $('#recTandas').onclick = (e) => {
   ls.set('cen-abiertas', [...recAbiertas].slice(-30)); pintarTandas();
 };
 
-/* ---------- PENDIENTES ---------- */
-let STOCK = null, filtro = '', busca = '';
-async function cargarPend() {
-  try {
-    const j = await api('places/stock'); AHORA = j.ahora;
-    STOCK = j.stock.find(s => s.tipo === 'collect') || j.stock[0] || null;
-    pintarPend();
-  } catch (e) { $('#pendInfo').innerHTML = '<div class="vacio">⚠ ' + esc(e.message) + '</div>'; }
-}
-function pintarPend() {
-  if (!STOCK) {
-    $('#pendInfo').innerHTML = '<div class="vacio">Todavía no hay datos. Abrí <b>🚚 Colecta</b> en la PC (Places) y se suben solos.</div>';
-    $('#pendProvs').hidden = $('#pendLista').hidden = true; return;
-  }
-  const L = STOCK.lista;
-  const cuenta = new Map();
-  L.forEach(x => { const k = x.prov || (/^M/.test(x.id) ? 'Devoluciones' : 'Sin dato'); cuenta.set(k, (cuenta.get(k) || 0) + 1); });
-  const ult = (k) => k === 'Sin dato' ? 2 : k === 'Devoluciones' ? 1 : 0;
-  const ks = [...cuenta.keys()].sort((a, b) => ult(a) - ult(b) || cuenta.get(b) - cuenta.get(a));
-  const colorK = (k) => k === 'Sin dato' ? '#90a4ae' : k === 'Devoluciones' ? '#8d6e63' : colorProv(k);
-  $('#pendInfo').innerHTML = '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:22px">' + L.length + '</b><span>paquetes para la colecta</span></div>' +
-    '<div class="mut">Actualizado ' + hace(STOCK.actualizado, AHORA) + ' · se actualiza cuando alguien abre Colecta en la PC</div>' +
-    '<input type="search" id="busca" placeholder="Buscar por número (ej. los últimos 4)…" value="' + esc(busca) + '" style="margin-top:10px" inputmode="numeric">';
-  $('#busca').oninput = (e) => { busca = e.target.value.replace(/\s/g, ''); pintarLista(); };
-  $('#pendProvs').hidden = false;
-  $('#pendProvs').innerHTML = '<div class="provs">' +
-    '<div class="prov' + (filtro ? '' : ' sel') + '" data-p=""><i style="background:#3483fa"></i><em><b>Todos</b></em><b>' + L.length + '</b></div>' +
-    ks.map(k => '<div class="prov' + (filtro === k ? ' sel' : '') + '" data-p="' + esc(k) + '"><i style="background:' + colorK(k) + '"></i><em>' + esc(k) + '</em><b>' + cuenta.get(k) + '</b></div>').join('') + '</div>';
-  $('#pendProvs').onclick = (e) => { const p = e.target.closest('[data-p]'); if (!p) return; filtro = filtro === p.dataset.p ? '' : p.dataset.p; pintarPend(); };
-  window.__colorK = colorK;
-  pintarLista();
-}
-function pintarLista() {
-  const colorK = window.__colorK;
-  const L = STOCK.lista.filter(x => {
-    const k = x.prov || (/^M/.test(x.id) ? 'Devoluciones' : 'Sin dato');
-    return (!filtro || filtro === k) && (!busca || x.id.includes(busca));
-  }).sort((a, b) => (a.t || 0) - (b.t || 0));
-  $('#pendLista').hidden = false;
-  $('#pendLista').innerHTML = L.length ? L.map(x => {
-    const k = x.prov || (/^M/.test(x.id) ? 'Devoluciones' : '');
-    const d = x.t ? diasAtras(x.t) : 0;
-    return '<div class="fila"><div><div class="n">' + numLindo(x.id) + '</div><div class="t">' + esc(x.tipo || '') + '</div></div>' +
-      (k ? '<span class="p" style="background:' + colorK(k) + '">' + esc(k) + '</span>' : '<span style="margin-left:auto"></span>') +
-      '<span class="h' + (d >= 2 ? ' viejo' : '') + '">' + (x.t ? diaTxt(x.t) + ' ' + hhmm(x.t) + (d >= 2 ? '<br>hace ' + d + ' días' : '') : '') + '</span></div>';
-  }).join('') : '<div class="vacio">Nada con ese filtro.</div>';
-}
-
 /* ---------- CARGAR PDF ---------- */
 // misma lectura que el Lector QR de la PC: 1 etiqueta por página, "Remitente #…" y el nº de envío
 async function idsDelPdf(file) {
@@ -383,25 +332,31 @@ async function idsDelPdf(file) {
   }
   return { ids, paginas: doc.numPages };
 }
-let PDF = null;   // { nombre, envios:[{id,rem}], paginas, malos }
+let PDF = null;   // { nombre, envios:[{id,rem}], paginas, malos, compartido, ya }
 $('#pdfIn').onchange = async (e) => {
   const files = [...e.target.files]; e.target.value = '';
   if (files.length) leerArchivos(files, 0);
 };
+function cerrarPdf() { PDF = null; $('#pdfRes').hidden = true; $('#pdfElegir').hidden = false; }
 async function leerArchivos(files, compartido) {
-  $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">Leyendo el PDF…</div>';
+  $('#pdfElegir').hidden = true;
+  $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📄 Leyendo el PDF…</div>';
   let envios = [], paginas = 0; const malos = [];
   for (const f of files) {
     try { const r = await idsDelPdf(f); paginas += r.paginas; if (!r.ids.length) malos.push(f.name); envios = envios.concat(r.ids); }
     catch (err) { malos.push(f.name + ' (' + err.message + ')'); }
   }
   const vistos = new Set(); envios = envios.filter(x => !vistos.has(x.id) && vistos.add(x.id));
-  PDF = { nombre: files.map(f => f.name.replace(/\.pdf$/i, '')).join(' + '), envios, paginas, malos, compartido };
+  PDF = { nombre: files.map(f => f.name.replace(/\.pdf$/i, '')).join(' + '), envios, paginas, malos, compartido, ya: { recibidos: {}, pdfs: {} } };
   let ap = { apodos: {}, nombres: [] };
-  try { ap = await api('places/apodos'); } catch (_) {}
+  if (envios.length) $('#pdfRes').innerHTML = '<div class="vacio">🔎 Revisando si ya estaba escaneado…</div>';
+  await Promise.all([
+    api('places/apodos').then(j => { ap = j; }).catch(() => {}),
+    envios.length ? api('places/ya', { ids: envios.map(x => x.id) }).then(j => { PDF.ya = j; }).catch(() => {}) : null,
+  ]);
   pintarPdf(ap);
 }
-// PDF compartido desde WhatsApp con el atajo del iPhone: queda en la nube hasta que se confirma o descarta
+// PDF compartido desde WhatsApp (atajo "Centro" del iPhone): queda en la nube hasta que se manda o se descarta
 let buscandoCompartido = false;
 async function revisarCompartidos() {
   if (PDF || buscandoCompartido) return;
@@ -410,77 +365,109 @@ async function revisarCompartidos() {
     const j = await api('places/pdfs');
     const p = (j.pdfs || [])[0]; if (!p || PDF) return;
     if (tab !== 'pdf') verTab('pdf');
-    $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📲 Llegó un PDF compartido, leyéndolo…</div>';
+    $('#pdfElegir').hidden = true;
+    $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📲 Llegó un PDF de WhatsApp, leyéndolo…</div>';
     const r = await fetch(API + 'places/pdf?id=' + p.id, { headers: { 'X-Clave': clave() } });
     if (!r.ok) throw new Error('no se pudo bajar');
     const d = new Date(p.creado);
-    const f = new File([await r.blob()], 'Compartido ' + hhmm(p.creado) + ' ' + d.getDate() + '-' + (d.getMonth() + 1) + '.pdf', { type: 'application/pdf' });
+    const f = new File([await r.blob()], 'WhatsApp ' + hhmm(p.creado) + ' ' + d.getDate() + '-' + (d.getMonth() + 1) + '.pdf', { type: 'application/pdf' });
     await leerArchivos([f], p.id);
-  } catch (e) { $('#pdfRes').innerHTML = '<div class="vacio">⚠ PDF compartido: ' + esc(e.message) + '</div>'; }
+  } catch (e) { $('#pdfRes').innerHTML = '<div class="vacio">⚠ PDF de WhatsApp: ' + esc(e.message) + '</div>'; $('#pdfElegir').hidden = false; }
   finally { buscandoCompartido = false; }
 }
 async function descartarCompartido() {
   if (PDF && PDF.compartido) { try { await api('places/pdf-borrar', { id: PDF.compartido }); } catch (_) {} }
 }
+const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
 function pintarPdf(ap) {
   const P = PDF;
   if (!P.envios.length) {
-    $('#pdfRes').innerHTML = '<div class="vacio">⚠ No encontré números de envío en ' + esc(P.malos.join(', ') || 'el PDF') + '.</div>' +
-      '<button class="btn" id="descartar" style="width:100%;margin-top:8px">Cerrar</button>';
-    $('#descartar').onclick = async () => { await descartarCompartido(); PDF = null; $('#pdfRes').hidden = true; };
+    $('#pdfRes').innerHTML = '<div class="aviso rojo"><b class="g">No encontré números de envío</b><br>' + esc(P.malos.join(', ') || 'en el PDF') + '. ¿Es un PDF de etiquetas de Mercado Libre?</div>' +
+      '<button class="big sec" id="descartar" style="margin-top:12px">Cerrar</button>';
+    $('#descartar').onclick = async () => { await descartarCompartido(); cerrarPdf(); };
     return;
   }
-  const porRem = {}; P.envios.forEach(x => { porRem[x.rem] = (porRem[x.rem] || 0) + 1; });
+  const rec = P.ya.recibidos || {}, yaRec = P.envios.filter(x => rec[x.id]), nuevos = P.envios.filter(x => !rec[x.id]);
+  const previos = Object.values(P.ya.pdfs || {}).sort((a, b) => b.creado - a.creado);
+  const porRem = {}; nuevos.forEach(x => { porRem[x.rem] = (porRem[x.rem] || 0) + 1; });
   const rems = Object.keys(porRem).sort((a, b) => porRem[b] - porRem[a]);
   const online = pcsOnline().length;
+  let av = '';
+  if (!nuevos.length) av = '<div class="aviso verde"><b class="g">✅ Este PDF ya está escaneado completo</b><br>Los ' + P.envios.length + ' envíos ya se recibieron en el centro. No hace falta mandarlo.</div>';
+  else if (yaRec.length) av = '<div class="aviso nar"><b class="g">⚠ ' + plural(yaRec.length, 'ya estaba escaneado', 'ya estaban escaneados') + '</b><br>Se mandan solo los <b>' + nuevos.length + ' que faltan</b>.' +
+    '<details style="margin-top:4px"><summary>Ver cuáles</summary><div class="lista-m">' + yaRec.map(x => '<div class="fila"><span class="n">' + numLindo(x.id) + '</span><span class="h">' + diaTxt(rec[x.id]) + ' ' + hhmm(rec[x.id]) + '</span></div>').join('') + '</div></details></div>';
+  if (previos.length && nuevos.length) av += '<div class="aviso nar">📄 Ya mandaste un PDF con estos envíos: <b>' + esc(previos[0].nombre) + '</b> (' + diaTxt(previos[0].creado) + ' ' + hhmm(previos[0].creado) + ', ' + previos[0].n + ' en común).</div>';
   $('#pdfRes').innerHTML =
-    '<div style="font-size:20px;font-weight:800">' + P.envios.length + ' envíos</div>' +
-    '<div class="mut">' + P.paginas + ' página' + (P.paginas === 1 ? '' : 's') + (P.paginas !== P.envios.length ? ' · ⚠ no coincide con la cantidad de envíos, revisá' : ' · 1 envío por página ✓') + '</div>' +
-    (P.malos.length ? '<div style="color:var(--nar);margin-top:4px">⚠ Sin envíos: ' + esc(P.malos.join(', ')) + '</div>' : '') +
-    '<div class="mut" style="margin:12px 0 2px;font-weight:700;text-transform:uppercase;font-size:12px">Proveedor de cada remitente</div>' +
-    rems.map(r => '<div class="rem"><div style="flex:0 0 120px"><b>' + (r ? '#' + esc(r) : 'Sin remitente') + '</b><div class="mut">' + porRem[r] + ' envío' + (porRem[r] === 1 ? '' : 's') + '</div></div>' +
-      (r ? '<input type="text" data-rem="' + esc(r) + '" list="noms" value="' + esc(ap.apodos[r] || '') + '" placeholder="Nombre del proveedor">' : '') + '</div>').join('') +
-    '<datalist id="noms">' + (ap.nombres || []).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>' +
-    '<button class="big ok" id="enviar" style="margin-top:14px">📲 Mandar ' + P.envios.length + ' envíos a la PC</button>' +
-    (online ? '<div class="mut" style="margin-top:6px;text-align:center">🟢 Hay ' + online + ' PC con Places abierto: arranca enseguida.</div>'
-            : '<div style="margin-top:6px;text-align:center;color:var(--nar);font-size:13px">🔴 Ahora no hay ninguna PC con Places abierto. Queda esperando y se escanea cuando se abra.</div>');
-  $('#enviar').onclick = confirmarEnvio;
-  $('#pdfRes').insertAdjacentHTML('beforeend', '<button class="btn" id="descartar" style="width:100%;margin-top:10px">✕ Descartar este PDF</button>');
-  $('#descartar').onclick = async () => { if (!confirm('¿Descartar este PDF sin mandarlo?')) return; await descartarCompartido(); PDF = null; $('#pdfRes').hidden = true; };
+    '<div class="mut">📄 ' + esc(P.nombre) + '</div>' +
+    '<div style="display:flex;align-items:baseline;gap:8px;margin-top:2px"><b style="font-size:30px">' + P.envios.length + '</b><span style="font-size:16px">envíos</span>' +
+      '<span class="mut" style="margin-left:auto">' + plural(P.paginas, 'página', 'páginas') + (P.paginas === P.envios.length ? ' ✓' : '') + '</span></div>' +
+    (P.paginas !== P.envios.length ? '<div class="aviso nar">⚠ Hay ' + P.paginas + ' páginas y ' + P.envios.length + ' envíos: revisá que el PDF esté completo.</div>' : '') +
+    (P.malos.length ? '<div class="aviso nar">⚠ Sin envíos: ' + esc(P.malos.join(', ')) + '</div>' : '') + av +
+    (nuevos.length && rems.some(r => r) ? '<div class="sub" style="margin:14px 0 2px">Proveedor</div>' +
+      rems.map(r => '<div class="rem"><div style="flex:0 0 110px"><b>' + (r ? '#' + esc(r) : 'Sin remitente') + '</b><div class="mut">' + plural(porRem[r], 'envío', 'envíos') + '</div></div>' +
+        (r ? '<input type="text" data-rem="' + esc(r) + '" list="noms" value="' + esc(ap.apodos[r] || '') + '" placeholder="¿De quién es?">' : '') + '</div>').join('') +
+      '<datalist id="noms">' + (ap.nombres || []).map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>' : '') +
+    (nuevos.length ? '<button class="big ok" id="enviar" style="margin-top:14px">📲 Mandar ' + plural(nuevos.length, 'envío', 'envíos') + ' a la PC</button>' +
+      '<div style="margin-top:6px;text-align:center;font-size:13px;' + (online ? 'color:var(--mut)' : 'color:var(--nar)') + '">' +
+        (online ? '🟢 Hay una PC con Places abierto: arranca enseguida.' : '🔴 No hay ninguna PC con Places abierto: queda esperando.') + '</div>' : '') +
+    '<button class="big sec" id="descartar" style="margin-top:10px">' + (nuevos.length ? '✕ No mandar' : 'Listo, cerrar') + '</button>';
+  if (nuevos.length) $('#enviar').onclick = () => confirmarEnvio(nuevos);
+  $('#descartar').onclick = async () => { await descartarCompartido(); cerrarPdf(); };
 }
-function confirmarEnvio() {
-  const n = PDF.envios.length;
-  modal('<div style="font-size:19px;font-weight:800">¿Confirmar ' + n + ' envíos?</div>' +
-    '<div style="margin:10px 0 16px;color:#444">La PC los va a <b>recibir en el Centro de envío</b> uno por uno. <b>No se puede deshacer</b> lo que ya se escaneó.</div>' +
-    '<div style="display:flex;gap:8px"><button class="btn" data-m="no" style="flex:1">Cancelar</button>' +
-    '<button class="big ok" data-m="si" style="flex:2;padding:12px">Sí, confirmar ' + n + '</button></div>', async (q) => {
+function confirmarEnvio(envios) {
+  const n = envios.length;
+  modal('<div style="font-size:21px;font-weight:800">¿Mandar ' + plural(n, 'envío', 'envíos') + '?</div>' +
+    '<div class="aviso rojo" style="margin:12px 0 16px"><b class="g">⚠ No se puede deshacer</b><br>La PC los va a recibir en el Centro de envío de Mercado Libre uno por uno. ' +
+      'Lo que ya se escaneó queda recibido.</div>' +
+    '<button class="big ok" data-m="si">Sí, mandar ' + n + '</button>' +
+    '<button class="big sec" data-m="no" style="margin-top:8px">Cancelar</button>', async (q) => {
     if (q !== 'si') return;
+    // pedir permiso de aviso (tiene que ser en un toque del usuario)
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (_) {}
+    audio();
     $('#enviar').disabled = true; $('#enviar').textContent = 'Mandando…';
     try {
-      // nombres puestos a los remitentes → a la nube (los ven todas las PC)
       const cambios = [];
       document.querySelectorAll('#pdfRes input[data-rem]').forEach(i => {
         const v = i.value.trim(); if (v) { cambios.push({ t: 'apodo', k: i.dataset.rem, v }); cambios.push({ t: 'nombre', k: v, v: '1' }); }
       });
       if (cambios.length) await api('prov', { cambios, pc: 'app-centro' });
-      await api('places/trabajo', { nombre: PDF.nombre, envios: PDF.envios });
-      await descartarCompartido();             // el compartido ya se mandó: sale de la nube
-      PDF = null; $('#pdfRes').hidden = true;
-      verTab('pdf');
-    } catch (e) { alert('No se pudo mandar: ' + e.message); $('#enviar').disabled = false; $('#enviar').textContent = '📲 Mandar ' + n + ' envíos a la PC'; }
+      const r = await api('places/trabajo', { nombre: PDF.nombre, envios });
+      await descartarCompartido();
+      cerrarPdf();
+      REPORT = REPORT || []; REPORT.push(-r.id); guardarRep();        // negativo = "lo mandé yo desde acá": avisar fuerte al terminar
+      modal('<div style="text-align:center"><div style="font-size:46px">📲</div><div style="font-size:20px;font-weight:800">Mandado</div>' +
+        '<div style="margin:8px 0 16px;color:#444">La PC lo está escaneando. <b>Cuando termine te muestro el reporte</b> (si cerrás la app, te lo muestra al volver a entrar).</div>' +
+        '<button class="big" data-m="ok">Entendido</button></div>', () => {});
+      await cargarRes();
+    } catch (e) { alert('No se pudo mandar: ' + e.message); $('#enviar').disabled = false; $('#enviar').textContent = '📲 Mandar ' + n + ' a la PC'; }
   });
 }
+let modalAbierto = false;
 function modal(html, cb) {
-  $('#modal > div').innerHTML = html; $('#modal').style.display = 'flex';
+  $('#modal > div').innerHTML = html; $('#modal').style.display = 'flex'; modalAbierto = true;
   $('#modal').onclick = (e) => {
     const b = e.target.closest('[data-m]');
     if (!b && e.target.id !== 'modal') return;
-    $('#modal').style.display = 'none'; cb(b ? b.dataset.m : 'no');
+    $('#modal').style.display = 'none'; modalAbierto = false; cb(b ? b.dataset.m : 'no');
   };
+}
+// sonido corto (iPhone solo lo deja después de un toque)
+let actx = null;
+function audio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (_) {} return actx; }
+function sonar(bien) {
+  const c = audio(); if (!c) return;
+  const t = c.currentTime + 0.02;
+  (bien ? [784, 988, 1319] : [440, 330, 220]).forEach((f, i) => {
+    const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; o.type = 'sine';
+    g.gain.setValueAtTime(0.0001, t + i * 0.13); g.gain.exponentialRampToValueAtTime(0.4, t + i * 0.13 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.13 + 0.22);
+    o.connect(g).connect(c.destination); o.start(t + i * 0.13); o.stop(t + i * 0.13 + 0.25);
+  });
+  try { navigator.vibrate && navigator.vibrate(bien ? 200 : [200, 100, 200]); } catch (_) {}
 }
 
 /* ---------- RESULTADOS ---------- */
-let TRAB = [], abierto = ls.get('cen-abierto', 0), APODOS = {};
+let TRAB = [], APODOS = {};
 const EST = {
   pendiente: ['⏳ Esperando una PC', '#fff3e0', '#e65100'],
   tomado: ['▶ Escaneando', '#e3f2fd', '#1565c0'],
@@ -488,65 +475,97 @@ const EST = {
   cancelado: ['✕ Cancelado', '#f5f5f5', '#616161'],
 };
 const RES = {
-  ok: ['OK', '#e8f5e9', '#2e7d32'], repetido: ['Ya escaneado', '#fff8e1', '#8d6e00'], cancelado: ['Cancelado — devolver', '#ffebee', '#c62828'],
+  ok: ['Recibidos OK', '#e8f5e9', '#2e7d32'], repetido: ['Ya estaban escaneados', '#fff8e1', '#8d6e00'], cancelado: ['CANCELADOS — devolver', '#ffebee', '#c62828'],
   otro: ['Error', '#ffebee', '#c62828'], sinrespuesta: ['Sin respuesta', '#ffebee', '#c62828'], ajeno: ['No es de ML', '#ffebee', '#c62828'],
 };
+// reportes ya mostrados (para mostrar solo una vez el de cada PDF)
+let REPORT = ls.get('cen-rep', null);
+const guardarRep = () => ls.set('cen-rep', REPORT.slice(-150));
+const activo = (t) => t.estado === 'pendiente' || t.estado === 'tomado';
 async function cargarRes() {
   try {
-    const j = await api('places/trabajos?n=40&detalle=' + abierto);
+    const j = await api('places/trabajos?n=40');
     AHORA = j.ahora; PCS = j.pcs; TRAB = j.trabajos; pintarPcs(); pintarRes();
+    if (REPORT === null) { REPORT = TRAB.filter(t => !activo(t)).map(t => t.id); guardarRep(); }
+    // ¿terminó alguno que todavía no reporté? → reporte en pantalla (una sola vez)
+    const fin = TRAB.find(t => !activo(t) && !REPORT.includes(t.id) && (t.hechos || REPORT.includes(-t.id)) && AHORA - (t.terminado || t.actualizado) < 2 * 86400000);
+    TRAB.filter(t => !activo(t) && !t.hechos && !REPORT.includes(t.id) && !REPORT.includes(-t.id)).forEach(t => REPORT.push(t.id)); guardarRep();
+    if (fin && !modalAbierto && !PDF) { REPORT.push(fin.id); guardarRep(); abrirReporte(fin.id, true); }
   } catch (e) { $('#resLista').innerHTML = '<div class="vacio">⚠ ' + esc(e.message) + '</div>'; }
 }
+function chipsDe(t) {
+  return Object.entries(t.cuenta || {}).sort((a, b) => (a[0] === 'ok' ? -1 : b[0] === 'ok' ? 1 : 0))
+    .map(([r, n]) => { const [txt, b2, f2] = RES[r] || [r, '#eee', '#333']; return '<span class="chip" style="background:' + b2 + ';color:' + f2 + '">' + txt + ' ' + n + '</span>'; }).join('');
+}
 function pintarRes() {
-  const activos = TRAB.filter(t => t.estado === 'pendiente' || t.estado === 'tomado').length;
-  $('#activos').hidden = !activos; $('#activos').textContent = activos;
-  if (!TRAB.length) { $('#resLista').innerHTML = '<div class="vacio">Todavía no mandaste ningún PDF.</div>'; return; }
-  $('#resLista').innerHTML = TRAB.map(t => {
-    const [et, bg, fg] = t.estado === 'listo' && t.cancelar && t.hechos < t.total ? ['⏹ Frenado', '#f5f5f5', '#616161'] : EST[t.estado] || [t.estado, '#eee', '#333'];
+  const act = TRAB.filter(activo);
+  $('#activos').hidden = !act.length; $('#activos').textContent = act.length;
+  // los que están en curso, arriba y grandes
+  $('#enCurso').innerHTML = act.map(t => {
     const pct = Math.round((t.hechos || 0) * 100 / (t.total || 1));
-    const chips = Object.entries(t.cuenta || {}).sort((a, b) => (a[0] === 'ok' ? -1 : 1))
-      .map(([r, n]) => { const [txt, b2, f2] = RES[r] || [r, '#eee', '#333']; return '<span class="chip" style="background:' + b2 + ';color:' + f2 + '">' + txt + ' ' + n + '</span>'; }).join('');
-    let det = '';
-    if (t.id === abierto && t.res) {
-      const remDe = {}; (t.envios || []).forEach(e => { remDe[e.id] = e.rem; });
-      const malos = t.res.filter(r => r.r !== 'ok');
-      const faltan = (t.envios || []).filter(e => !t.res.some(r => r.id === e.id));
-      det = '<div class="det">' +
-        (malos.length ? malos.map(r => { const [txt, , f2] = RES[r.r] || [r.txt || r.r, '', '#c62828']; const pv = APODOS[remDe[r.id]] || '';
-          return '<div class="fila"><span class="n">' + numLindo(r.id) + '</span>' + (pv ? '<span class="t">' + esc(pv) + '</span>' : '') +
-            '<span class="h" style="color:' + f2 + ';font-weight:700;margin-left:auto">' + txt + '</span></div>'; }).join('')
-          : (t.estado === 'listo' ? '<div class="fila" style="color:var(--ok);font-weight:700">✓ Todos OK</div>' : '')) +
-        (faltan.length && t.estado !== 'listo' ? '<div class="mut" style="padding:6px 0">Faltan ' + faltan.length + ' por escanear</div>' : '') +
-        '</div>' +
-        ((t.estado === 'pendiente' || t.estado === 'tomado') && !t.cancelar ? '<button class="btn rojo" data-cancel="' + t.id + '" style="margin-top:8px">✕ Cancelar' + (t.estado === 'tomado' ? ' (frena lo que falta)' : '') + '</button>' : '') +
-        (t.estado === 'listo' || t.estado === 'cancelado' ? '<button class="btn" data-borrar="' + t.id + '" style="margin-top:8px">🗑 Borrar del historial</button>' : '');
-    }
-    return '<div class="trab" data-t="' + t.id + '"><div class="l1"><b>📄 ' + esc(t.nombre) + '</b><span class="est" style="background:' + bg + ';color:' + fg + '">' + et + (t.cancelar && t.estado === 'tomado' ? ' (frenando)' : '') + '</span></div>' +
-      '<div class="mut">' + diaTxt(t.creado) + ' ' + hhmm(t.creado) + ' · ' + t.total + ' envíos' + (t.pc ? ' · ' + esc(nombrePc(t.pc)) : '') +
-        (t.terminado ? ' · tardó ' + Math.max(1, Math.round((t.terminado - (t.tomado || t.creado)) / 60000)) + ' min' : '') + '</div>' +
-      (t.estado === 'tomado' || (t.estado !== 'pendiente' && t.hechos < t.total && t.hechos) ? '<div class="barra"><div style="width:' + pct + '%"></div></div><div class="mut">' + t.hechos + ' de ' + t.total + '</div>' : '') +
-      (chips ? '<div class="chips">' + chips + '</div>' : '') + det + '</div>';
+    return '<div class="curso"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ' + esc(t.nombre) + '</b>' +
+        '<span class="est" style="background:' + EST[t.estado][1] + ';color:' + EST[t.estado][2] + '">' + EST[t.estado][0] + (t.cancelar ? ' (frenando)' : '') + '</span></div>' +
+      '<div style="display:flex;align-items:baseline;gap:6px;margin-top:10px"><span class="num">' + (t.hechos || 0) + '</span><span>de ' + t.total + '</span>' +
+        '<span class="mut" style="margin-left:auto">' + (t.estado === 'pendiente' ? (pcsOnline().length ? 'arrancando…' : 'abrí Places en una PC') : t.pc ? esc(nombrePc(t.pc)) : '') + '</span></div>' +
+      '<div class="barra"><div style="width:' + pct + '%"></div></div>' +
+      (chipsDe(t) ? '<div class="chips">' + chipsDe(t) + '</div>' : '') +
+      (!t.cancelar ? '<button class="btn rojo" data-cancel="' + t.id + '" style="margin-top:10px">✕ Frenar' + (t.estado === 'tomado' ? ' lo que falta' : '') + '</button>' : '') + '</div>';
+  }).join('');
+  const hist = TRAB.filter(t => !activo(t));
+  if (!hist.length) { $('#resLista').innerHTML = '<div class="vacio">Todavía no mandaste ningún PDF.</div>'; return; }
+  $('#resLista').innerHTML = hist.map(t => {
+    const c = t.cuenta || {}, malos = (c.cancelado || 0) + (c.otro || 0) + (c.sinrespuesta || 0) + (c.ajeno || 0);
+    const frenado = t.cancelar && t.hechos < t.total;
+    const ic = t.estado === 'cancelado' || frenado ? '⏹' : c.cancelado ? '🚨' : malos ? '⚠' : '✅';
+    return '<div class="trab" data-t="' + t.id + '"><div class="l1"><span style="font-size:20px">' + ic + '</span><b>' + esc(t.nombre) + '</b><span class="mut">›</span></div>' +
+      '<div class="mut">' + diaTxt(t.creado) + ' ' + hhmm(t.creado) + ' · ' + plural(t.total, 'envío', 'envíos') + (frenado ? ' · frenado en ' + t.hechos : t.estado === 'cancelado' ? ' · cancelado' : '') + '</div>' +
+      (chipsDe(t) ? '<div class="chips">' + chipsDe(t) + '</div>' : '') + '</div>';
   }).join('');
 }
 const nombrePc = (pc) => { const p = PCS.find(x => x.pc === pc); return p ? (p.url || '').split(' | ')[0] || pc : pc; };
-$('#resLista').onclick = async (e) => {
+// reporte de un PDF mandado: qué pasó con cada envío, bien claro
+async function abrirReporte(id, solo) {
+  let t;
+  try { t = (await api('places/trabajos?n=60&detalle=' + id)).trabajos.find(x => x.id === id); } catch (e) { alert(e.message); return; }
+  if (!t) return;
+  const res = t.res || [], remDe = {}; (t.envios || []).forEach(e => { remDe[e.id] = e.rem; });
+  const de = (k) => res.filter(r => r.r === k), malos = res.filter(r => !['ok', 'repetido', 'cancelado'].includes(r.r));
+  const faltan = (t.envios || []).filter(e => !res.some(r => r.id === e.id));
+  const ok = de('ok').length, rep = de('repetido').length, canc = de('cancelado'), err = malos.length;
+  const todoBien = !canc.length && !err && !faltan.length;
+  const pv = (id) => APODOS[remDe[id]] ? '<span class="t">' + esc(APODOS[remDe[id]]) + '</span>' : '';
+  const lista = (L, color, txt) => '<div class="lista-m">' + L.map(r => '<div class="fila"><span class="n">' + numLindo(r.id) + '</span>' + pv(r.id) +
+    '<span class="h" style="margin-left:auto;color:' + color + ';font-weight:700">' + esc(txt || (RES[r.r] || [r.txt || r.r])[0]) + '</span></div>').join('') + '</div>';
+  const tile = (n, txt, bg, fg) => '<div class="tile" style="background:' + bg + ';color:' + fg + '"><b>' + n + '</b><span>' + txt + '</span></div>';
+  if (solo) sonar(todoBien);
+  if (solo) try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden)
+    new Notification(todoBien ? '✅ PDF escaneado' : '⚠ PDF escaneado con avisos', { body: t.nombre + ': ' + ok + ' OK' + (rep ? ', ' + rep + ' ya estaban' : '') + (canc.length ? ', ' + canc.length + ' CANCELADOS' : '') + (err ? ', ' + err + ' con error' : ''), icon: 'icon-192.png' }); } catch (_) {}
+  modal('<div style="text-align:center"><div style="font-size:46px;line-height:1.1">' + (canc.length ? '🚨' : todoBien ? '✅' : '⚠') + '</div>' +
+      '<div style="font-size:21px;font-weight:800;margin-top:4px">' + (t.estado === 'cancelado' && !t.hechos ? 'Cancelado' : faltan.length ? 'Frenado' : todoBien ? '¡Listo, todo bien!' : 'Terminado con avisos') + '</div>' +
+      '<div class="mut">📄 ' + esc(t.nombre) + ' · ' + diaTxt(t.creado) + ' ' + hhmm(t.creado) + '</div></div>' +
+    '<div class="tiles">' + tile(ok, 'recibidos OK', '#e8f5e9', '#2e7d32') + tile(rep, 'ya estaban escaneados', '#fff8e1', '#8d6e00') +
+      (canc.length ? tile(canc.length, 'CANCELADOS', '#ffebee', '#c62828') : '') + (err ? tile(err, 'con error', '#ffebee', '#c62828') : '') +
+      (faltan.length ? tile(faltan.length, 'sin escanear', '#f1f3f5', '#444') : '') + '</div>' +
+    (canc.length ? '<div class="aviso rojo"><b class="g">🚨 Separá estos paquetes</b><br>Están cancelados: no van a la colecta, hay que devolverlos.' + lista(canc, '#c62828', 'Cancelado') + '</div>' : '') +
+    (err ? '<div class="aviso rojo"><b class="g">⚠ Estos no se pudieron recibir</b><br>Escanealos a mano en la PC.' + lista(malos, '#c62828') + '</div>' : '') +
+    (faltan.length ? '<div class="aviso nar"><b class="g">Quedaron ' + faltan.length + ' sin escanear</b> (se frenó antes de terminar).' + lista(faltan, '#666', 'Falta') + '</div>' : '') +
+    (rep ? '<details style="margin-top:10px"><summary class="mut">Ver los ' + rep + ' que ya estaban escaneados (no pasa nada)</summary>' + lista(de('repetido'), '#8d6e00', 'Ya estaba') + '</details>' : '') +
+    '<div class="mut" style="margin-top:10px;text-align:center">' + (t.pc ? '🖥 ' + esc(nombrePc(t.pc)) : '') + (t.terminado ? ' · tardó ' + Math.max(1, Math.round((t.terminado - (t.tomado || t.creado)) / 60000)) + ' min' : '') + '</div>' +
+    '<button class="big" data-m="ok" style="margin-top:14px">Entendido</button>' +
+    '<button class="btn" data-m="borrar" style="width:100%;margin-top:8px;color:var(--mut)">🗑 Borrar del historial</button>', async (q) => {
+    if (q !== 'borrar' || !confirm('¿Borrar este PDF del historial?')) return;
+    try { await api('places/borrar', { id }); } catch (err) { alert(err.message); }
+    cargarRes();
+  });
+}
+$('#t-pdf').onclick = async (e) => {
   const c = e.target.closest('[data-cancel]');
   if (c) {
-    e.stopPropagation();
-    if (!confirm('¿Cancelar este envío a la PC?\nLo que ya se escaneó queda escaneado.')) return;
+    if (!confirm('¿Frenar este PDF?\nLo que ya se escaneó queda escaneado.')) return;
     try { await api('places/cancelar', { id: +c.dataset.cancel }); } catch (err) { alert(err.message); }
     cargarRes(); return;
   }
-  const bo = e.target.closest('[data-borrar]');
-  if (bo) {
-    e.stopPropagation();
-    if (!confirm('¿Borrar este resultado del historial?')) return;
-    try { await api('places/borrar', { id: +bo.dataset.borrar }); } catch (err) { alert(err.message); }
-    cargarRes(); return;
-  }
-  const t = e.target.closest('[data-t]'); if (!t) return;
-  abierto = abierto === +t.dataset.t ? 0 : +t.dataset.t; ls.set('cen-abierto', abierto);
-  cargarRes();
+  const t = e.target.closest('#resLista [data-t]'); if (t) abrirReporte(+t.dataset.t, false);
 };
 
 /* ---------- refresco ---------- */
@@ -571,9 +590,6 @@ let pedidoInstalar = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e; $('#instalar').hidden = false; });
 $('#instalar').onclick = async () => { if (!pedidoInstalar) return; pedidoInstalar.prompt(); await pedidoInstalar.userChoice; pedidoInstalar = null; $('#instalar').hidden = true; };
 
-const urlAtajo = () => API + 'places/pdf?clave=' + encodeURIComponent(clave());
-$('#pdfIn').closest('.card').querySelector('details').ontoggle = () => { $('#urlAtajo').textContent = urlAtajo(); };
-$('#copAtajo').onclick = () => { navigator.clipboard.writeText(urlAtajo()).then(() => { $('#copAtajo').textContent = '✓ Copiado'; }); };
 verTab(tab);
 programar();
 setTimeout(revisarCompartidos, 800);
