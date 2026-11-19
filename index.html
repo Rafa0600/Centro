@@ -8,22 +8,23 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root { --bg:#f2f3f5; --card:#fff; --tx:#1d1d1f; --mut:#6b7280; --bd:#e6e8eb; --az:#3483fa; --ok:#2e7d32; --mal:#c62828; --nar:#e65100; --am:#ffe600; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { margin:0; background:var(--bg); color:var(--tx); font:15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  header { background:var(--am); padding:10px 16px 0; position:sticky; top:0; z-index:5; }
+  header { background:var(--am); padding:calc(8px + env(safe-area-inset-top)) 16px 8px; position:sticky; top:0; z-index:5; }
   .top { display:flex; align-items:center; gap:8px; }
   .top b { font-size:18px; flex:1; }
   .top button { border:0; background:rgba(0,0,0,.08); border-radius:8px; padding:6px 10px; font:600 13px system-ui,sans-serif; color:#1d1d1f; cursor:pointer; }
-  #pcs { font-size:12px; margin-top:4px; color:#444; display:flex; gap:6px; flex-wrap:wrap; }
-  #pcs span { background:rgba(255,255,255,.6); border-radius:10px; padding:2px 8px; }
-  nav { display:flex; margin-top:8px; }
-  nav button { flex:1; border:0; background:none; padding:9px 4px 10px; font:600 14px system-ui,sans-serif; color:#555; border-bottom:3px solid transparent; cursor:pointer; }
-  nav button.on { color:#1d1d1f; border-bottom-color:#1d1d1f; }
-  nav button i { font-style:normal; background:#1d1d1f; color:#fff; border-radius:9px; padding:0 6px; font-size:11px; margin-left:4px; }
-  main { max-width:720px; margin:0 auto; padding:12px 16px 40px; }
+  #pcs { font-size:12px; font-weight:600; background:rgba(255,255,255,.65); border-radius:12px; padding:3px 9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:52vw; }
+  nav { position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; background:rgba(255,255,255,.96); border-top:1px solid var(--bd);
+        padding-bottom:env(safe-area-inset-bottom); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+  nav button { flex:1; border:0; background:none; padding:7px 2px 8px; font:600 11px system-ui,sans-serif; color:#8a8f98; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; position:relative; }
+  nav button span { font-size:22px; line-height:1; filter:grayscale(1); opacity:.6; }
+  nav button.on { color:#1d1d1f; }
+  nav button.on span { filter:none; opacity:1; }
+  nav button i { position:absolute; top:3px; left:calc(50% + 8px); font-style:normal; background:var(--mal); color:#fff; border-radius:9px; padding:0 6px; font-size:11px; }
+  main { max-width:720px; margin:0 auto; padding:12px 16px calc(84px + env(safe-area-inset-bottom)); }
   .card { background:var(--card); border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
   .mut { color:var(--mut); font-size:13px; }
   .big { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:0; border-radius:14px; padding:18px; background:var(--az); color:#fff; font:700 17px system-ui,sans-serif; cursor:pointer; }
@@ -71,7 +72,7 @@
   .dias b { flex:1; text-align:center; font-size:17px; }
   .kpis { display:flex; gap:8px; margin-top:10px; }
   .kpi { flex:1; background:#f6f7f9; border-radius:10px; padding:8px 10px; }
-  .kpi b { display:block; font-size:22px; line-height:1.1; }
+  .kpi b { display:block; font-size:20px; line-height:1.1; white-space:nowrap; }
   .kpi span { font-size:12px; color:var(--mut); }
   .tanda { background:var(--card); border-radius:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.07); overflow:hidden; }
   .tanda .cab { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; }
@@ -105,14 +106,13 @@
 </head>
 <body>
 <header>
-  <div class="top"><b>🏬 Centro de envío</b><button id="instalar" hidden>⬇ Instalar</button><button id="cfg" title="Clave">⚙</button></div>
-  <div id="pcs"></div>
-  <nav>
-    <button data-tab="cen" class="on">📦 En el centro</button>
-    <button data-tab="rec">📥 Recibidos</button>
-    <button data-tab="pdf">📄 PDF<i id="activos" hidden></i></button>
-  </nav>
+  <div class="top"><b>🏬 Centro</b><span id="pcs"></span><button id="instalar" hidden>⬇</button><button id="cfg" title="Clave">⚙</button></div>
 </header>
+<nav>
+  <button data-tab="cen" class="on"><span>📦</span>En el centro</button>
+  <button data-tab="rec"><span>📥</span>Recibidos</button>
+  <button data-tab="pdf"><span>📄</span>Mandar PDF<i id="activos" hidden></i></button>
+</nav>
 <main>
   <!-- RECIBIDOS (principal): todo lo que entró, con hora y proveedor, en vivo -->
   <section id="t-rec">
@@ -126,7 +126,7 @@
     <div id="enCurso"></div>
     <div class="card" id="pdfElegir">
       <label class="big">📄 Elegir PDF de etiquetas<input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden></label>
-      <div class="mut" style="margin-top:8px;text-align:center">o desde WhatsApp: abrís el PDF → compartir ⬆ → <b>Centro</b></div>
+      <div class="mut" style="margin-top:8px;text-align:center">o desde WhatsApp: compartir ⬆ → <b>Centro</b></div>
     </div>
     <div class="card" id="pdfRes" hidden></div>
     <div class="sub">Mandados</div>
@@ -137,7 +137,16 @@
 
 <script>
 const API = 'https://mikra-historial.rafaelassir.workers.dev/api/';
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let pdfjsCarga = null;
+function cargarPdfJs() {
+  return pdfjsCarga = pdfjsCarga || new Promise((ok, mal) => {
+    const sc = document.createElement('script'); sc.src = PDFJS + 'pdf.min.js';
+    sc.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; ok(); };
+    sc.onerror = () => { pdfjsCarga = null; mal(new Error('sin conexión')); };
+    document.head.appendChild(sc);
+  });
+}
 const ls = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
@@ -185,7 +194,13 @@ function verTab(t) {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   // "En el centro" y "Recibidos" usan la misma pantalla (tandas por hora y proveedor)
   $('#t-rec').hidden = t === 'pdf'; $('#t-pdf').hidden = t !== 'pdf';
-  if (t !== 'pdf') { $('#recCab').innerHTML = '<div class="vacio">Cargando…</div>'; $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; }
+  if (t !== 'pdf') {
+    const c = recDia === 0 && ls.get('cen-c-' + t, null);
+    if (c) { REC = c.lista; STOCK_ACT = c.act || 0; AHORA = Date.now(); recVistos = new Set(REC.map(x => x.id)); pintarRec(); }
+    else { $('#recCab').innerHTML = '<div class="vacio">Cargando…</div>'; $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; }
+  }
+  window.scrollTo(0, 0);
+  if (t === 'pdf') cargarPdfJs().catch(() => {});   // se va bajando mientras elegís el PDF
   refrescar();
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => verTab(b.dataset.tab));
@@ -196,8 +211,9 @@ function pcsOnline() { return PCS.filter(p => !/^__/.test(p.pc) && AHORA - p.vis
 function pintarPcs() {
   const on = pcsOnline();
   $('#pcs').innerHTML = on.length
-    ? on.map(p => '<span>🟢 ' + esc((p.url || '').split(' | ')[0] || p.pc) + (p.ocupado ? ' · escaneando' : ' · libre') + '</span>').join('')
-    : '<span>🔴 Ninguna PC con Places abierto (lo que mandes queda esperando)</span>';
+    ? '🟢 ' + (on.some(p => p.ocupado) ? 'Escaneando' : on.length === 1 ? esc((on[0].url || '').split(' | ')[0] || 'PC') : on.length + ' PC')
+    : '🔴 Sin PC';
+  $('#pcs').title = on.map(p => (p.url || '').split(' | ')[0]).join(', ');
 }
 
 /* ---------- RECIBIDOS (principal) ---------- */
@@ -214,7 +230,7 @@ async function cargarRec() {
   try {
     let lista;
     if (tab === 'cen') {                     // lo que todavía está en el centro (lista de la colecta que sube la PC)
-      if (!STOCK_ACT || Date.now() - STOCK_ACT > 60000) await pedirActualizar(false);
+      if (!STOCK_ACT || Date.now() - STOCK_ACT > 60000) pedirActualizar(false);   // sin esperar
       const j = await api('places/stock'); AHORA = j.ahora; PEDIDO = Math.max(PEDIDO, j.pedido || 0);
       const st = j.stock.find(x => x.tipo === 'collect') || j.stock[0] || null;
       STOCK_ACT = st ? st.actualizado : 0; STOCK_PC = st ? st.pc : '';
@@ -225,6 +241,7 @@ async function cargarRec() {
     }
     const antes = recVistos; recVistos = new Set(lista.map(x => x.id));
     REC = lista.map(x => ({ ...x, nuevo: antes && !antes.has(x.id) }));
+    if (recDia === 0) ls.set('cen-c-' + tab, { lista, act: STOCK_ACT });
     pintarRec();
   } catch (e) { $('#recCab').innerHTML = '<div class="vacio">⚠ ' + esc(e.message) + '</div>'; }
 }
@@ -251,24 +268,23 @@ function pintarRec() {
   if (tab === 'cen') {
     const viejo = REC[REC.length - 1];
     $('#recCab').innerHTML = !STOCK_ACT
-      ? '<div class="vacio">Todavía no hay datos: dejá Places abierto en una PC y en unos minutos aparece solo.</div>'
-      : '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:26px">' + REC.length + '</b><span style="font-size:16px">paquetes en el centro</span></div>' +
-        '<div class="kpis"><div class="kpi"><b>' + ks.filter(k => k !== 'Sin proveedor' && k !== 'Devoluciones').length + '</b><span>proveedores</span></div>' +
-          '<div class="kpi"><b>' + (viejo && viejo.t ? (diasAtras(viejo.t) ? diaTxt(viejo.t) : hhmm(viejo.t)) : '—') + '</b><span>el más viejo</span></div>' +
-          '<div class="kpi"><b>' + (ultimo && ultimo.t ? hhmm(ultimo.t) : '—') + '</b><span>último ingreso</span></div></div>' +
-        '<input type="search" id="recBusca" placeholder="Buscar número (ej. los últimos 4)…" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">' +
+      ? '<div class="vacio">Sin datos todavía: abrí Places en una PC.</div>'
+      : '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:28px">' + REC.length + '</b><span style="font-size:16px;flex:1">en el centro</span>' +
         (PEDIDO > STOCK_ACT && AHORA - PEDIDO < 180000
-          ? '<div style="margin-top:6px;color:var(--az);font-weight:700">⏳ Pidiendo a la PC que actualice… (≈ 1 min) · último: ' + hace(STOCK_ACT, AHORA) + '</div>'
-          : '<div class="mut" style="margin-top:6px">🔄 Actualizado ' + hace(STOCK_ACT, AHORA) + ' <button class="btn" id="actYa" style="padding:3px 9px;font-size:12px;margin-left:6px">Actualizar ya</button></div>' +
-            (PEDIDO > STOCK_ACT ? '<div style="margin-top:4px;color:var(--nar);font-size:13px">⚠ La PC no respondió: tiene que estar con Places abierto AL FRENTE (no minimizado) y con el Lector QR al día.</div>' : ''));
+          ? '<span class="mut" style="color:var(--az);font-weight:700">⏳ actualizando…</span>'
+          : '<span class="mut">' + hace(STOCK_ACT, AHORA) + '</span><button class="btn" id="actYa" style="padding:4px 10px">↻</button>') + '</div>' +
+        (PEDIDO > STOCK_ACT && AHORA - PEDIDO >= 180000 ? '<div style="margin-top:4px;color:var(--nar);font-size:13px">⚠ La PC no respondió (Places tiene que estar al frente)</div>' : '') +
+        '<div class="kpis"><div class="kpi"><b>' + ks.filter(k => k !== 'Sin proveedor' && k !== 'Devoluciones').length + '</b><span>proveedores</span></div>' +
+          '<div class="kpi"><b>' + (viejo && viejo.t ? (diasAtras(viejo.t) ? diaTxt(viejo.t).replace(/^\S+ (?=\d)/, '') : hhmm(viejo.t)) : '—') + '</b><span>el más viejo</span></div>' +
+          '<div class="kpi"><b>' + (ultimo && ultimo.t ? hhmm(ultimo.t) : '—') + '</b><span>último</span></div></div>' +
+        '<input type="search" id="recBusca" placeholder="🔍 Últimos 4 dígitos" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">';
   } else
   $('#recCab').innerHTML =
     '<div class="dias"><button data-d="1">‹</button><b>' + titulo + '</b><button data-d="-1"' + (recDia === 0 ? ' disabled' : '') + '>›</button></div>' +
     '<div class="kpis"><div class="kpi"><b>' + REC.length + '</b><span>recibidos</span></div>' +
       '<div class="kpi"><b>' + (REC.length ? hhmm(REC[REC.length - 1].t) : '—') + '</b><span>primero</span></div>' +
       '<div class="kpi"><b>' + (ultimo ? hhmm(ultimo.t) : '—') + '</b><span>último' + (ultimo && recDia === 0 ? ' · ' + hace(ultimo.t, AHORA).replace('hace ', '') : '') + '</span></div></div>' +
-    '<input type="search" id="recBusca" placeholder="Buscar número (ej. los últimos 4)…" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">' +
-    (recDia === 0 ? '<div class="mut" style="margin-top:6px">🔄 Se actualiza solo cada 10 s</div>' : '');
+    '<input type="search" id="recBusca" placeholder="🔍 Últimos 4 dígitos" value="' + esc(recBusca) + '" style="margin-top:10px" inputmode="numeric">';
   if ($('#actYa')) $('#actYa').onclick = async () => { await pedirActualizar(true); cargarRec(); };
   if (!$('#recBusca')) { $('#recProvs').hidden = true; $('#recTandas').innerHTML = ''; return; }
   $('#recCab').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { recDia = Math.max(0, recDia + +b.dataset.d); recVistos = null; REC = []; cargarRec(); });
@@ -310,6 +326,7 @@ $('#recTandas').onclick = (e) => {
 /* ---------- CARGAR PDF ---------- */
 // misma lectura que el Lector QR de la PC: 1 etiqueta por página, "Remitente #…" y el nº de envío
 async function idsDelPdf(file) {
+  await cargarPdfJs();
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
   const ids = [];
   for (let p = 1; p <= doc.numPages; p++) {
@@ -486,6 +503,7 @@ async function cargarRes() {
   try {
     const j = await api('places/trabajos?n=40');
     AHORA = j.ahora; PCS = j.pcs; TRAB = j.trabajos; pintarPcs(); pintarRes();
+    ls.set('cen-c-trab', { pcs: PCS, trab: TRAB, ahora: AHORA });
     if (REPORT === null) { REPORT = TRAB.filter(t => !activo(t)).map(t => t.id); guardarRep(); }
     // ¿terminó alguno que todavía no reporté? → reporte en pantalla (una sola vez)
     const fin = TRAB.find(t => !activo(t) && !REPORT.includes(t.id) && (t.hechos || REPORT.includes(-t.id)) && AHORA - (t.terminado || t.actualizado) < 2 * 86400000);
@@ -572,9 +590,8 @@ $('#t-pdf').onclick = async (e) => {
 async function refrescar() {
   if (!clave()) { if (!pedirClave()) return; }
   if (!Object.keys(APODOS).length) api('places/apodos').then(j => { APODOS = j.apodos; }).catch(() => {});
-  await cargarRes();                    // trae también las PCs conectadas
+  await Promise.all([cargarRes(), tab !== 'pdf' ? cargarRec() : null]);   // todo a la vez
   revisarCompartidos();
-  if (tab === 'cen' || tab === 'rec') await cargarRec();
 }
 let timer = null;
 function programar() {
@@ -590,6 +607,7 @@ let pedidoInstalar = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e; $('#instalar').hidden = false; });
 $('#instalar').onclick = async () => { if (!pedidoInstalar) return; pedidoInstalar.prompt(); await pedidoInstalar.userChoice; pedidoInstalar = null; $('#instalar').hidden = true; };
 
+{ const c = ls.get('cen-c-trab', null); if (c) { PCS = c.pcs; TRAB = c.trab; AHORA = c.ahora; pintarPcs(); pintarRes(); AHORA = Date.now(); } }
 verTab(tab);
 programar();
 setTimeout(revisarCompartidos, 800);
