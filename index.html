@@ -358,13 +358,19 @@ function cerrarPdf() { PDF = null; $('#pdfRes').hidden = true; $('#pdfElegir').h
 async function leerArchivos(files, compartido) {
   $('#pdfElegir').hidden = true;
   $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📄 Leyendo el PDF…</div>';
-  let envios = [], paginas = 0; const malos = [];
+  let envios = [], paginas = 0, repes = 0; const malos = [], vistos = new Set();
+  if (files.length > 1) $('#pdfRes').innerHTML = '<div class="vacio">📄 Leyendo ' + files.length + ' PDFs…</div>';
   for (const f of files) {
-    try { const r = await idsDelPdf(f); paginas += r.paginas; if (!r.ids.length) malos.push(f.name); envios = envios.concat(r.ids); }
-    catch (err) { malos.push(f.name + ' (' + err.message + ')'); }
+    try {
+      const r = await idsDelPdf(f);
+      if (!r.ids.length) { malos.push(f.name); paginas += r.paginas; continue; }
+      if (r.ids.every(x => vistos.has(x.id))) { repes++; continue; }      // el mismo PDF compartido dos veces: no se suma
+      paginas += r.paginas; r.ids.forEach(x => { if (!vistos.has(x.id)) { vistos.add(x.id); envios.push(x); } });
+    } catch (err) { malos.push(f.name + ' (' + err.message + ')'); }
   }
-  const vistos = new Set(); envios = envios.filter(x => !vistos.has(x.id) && vistos.add(x.id));
-  PDF = { nombre: files.map(f => f.name.replace(/\.pdf$/i, '')).join(' + '), envios, paginas, malos, compartido, ya: { recibidos: {}, pdfs: {} } };
+  const noms = files.map(f => f.name.replace(/\.pdf$/i, '').replace(/ \(\d+\)$/, ''));
+  const nombre = files.length > 1 ? noms[0] + ' · ' + files.length + ' PDFs' : noms[0];
+  PDF = { nombre, envios, paginas, malos, compartido, repes, nArch: files.length, ya: { recibidos: {}, pdfs: {} } };
   let ap = { apodos: {}, nombres: [] };
   if (envios.length) $('#pdfRes').innerHTML = '<div class="vacio">🔎 Revisando si ya estaba escaneado…</div>';
   await Promise.all([
@@ -380,20 +386,24 @@ async function revisarCompartidos() {
   buscandoCompartido = true;
   try {
     const j = await api('places/pdfs');
-    const p = (j.pdfs || [])[0]; if (!p || PDF) return;
+    const ps = j.pdfs || []; if (!ps.length || PDF) return;
+    // si se compartieron varios juntos van llegando de a uno: esperar a que caigan todos
+    if (Date.now() - Math.max(...ps.map(p => p.creado)) < 8000) { setTimeout(revisarCompartidos, 8000); return; }
     if (tab !== 'pdf') verTab('pdf');
     $('#pdfElegir').hidden = true;
-    $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📲 Llegó un PDF de WhatsApp, leyéndolo…</div>';
-    const r = await fetch(API + 'places/pdf?id=' + p.id, { headers: { 'X-Clave': clave() } });
-    if (!r.ok) throw new Error('no se pudo bajar');
-    const d = new Date(p.creado);
-    const f = new File([await r.blob()], 'WhatsApp ' + hhmm(p.creado) + ' ' + d.getDate() + '-' + (d.getMonth() + 1) + '.pdf', { type: 'application/pdf' });
-    await leerArchivos([f], p.id);
+    $('#pdfRes').hidden = false; $('#pdfRes').innerHTML = '<div class="vacio">📲 Llegaron ' + (ps.length > 1 ? ps.length + ' PDFs' : 'un PDF') + ' de WhatsApp, leyendo…</div>';
+    const files = await Promise.all(ps.map(async (p, i) => {
+      const r = await fetch(API + 'places/pdf?id=' + p.id, { headers: { 'X-Clave': clave() } });
+      if (!r.ok) throw new Error('no se pudo bajar');
+      const d = new Date(p.creado);
+      return new File([await r.blob()], 'WhatsApp ' + hhmm(p.creado) + ' ' + d.getDate() + '-' + (d.getMonth() + 1) + (ps.length > 1 ? ' (' + (i + 1) + ')' : '') + '.pdf', { type: 'application/pdf' });
+    }));
+    await leerArchivos(files, ps.map(p => p.id));
   } catch (e) { $('#pdfRes').innerHTML = '<div class="vacio">⚠ PDF de WhatsApp: ' + esc(e.message) + '</div>'; $('#pdfElegir').hidden = false; }
   finally { buscandoCompartido = false; }
 }
 async function descartarCompartido() {
-  if (PDF && PDF.compartido) { try { await api('places/pdf-borrar', { id: PDF.compartido }); } catch (_) {} }
+  if (PDF && PDF.compartido) await Promise.all([].concat(PDF.compartido).map(id => api('places/pdf-borrar', { id }).catch(() => {})));
 }
 const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
 function pintarPdf(ap) {
@@ -415,7 +425,7 @@ function pintarPdf(ap) {
     '<details style="margin-top:4px"><summary>Ver cuáles</summary><div class="lista-m">' + yaRec.map(x => '<div class="fila"><span class="n">' + numLindo(x.id) + '</span><span class="h">' + diaTxt(rec[x.id]) + ' ' + hhmm(rec[x.id]) + '</span></div>').join('') + '</div></details></div>';
   if (previos.length && nuevos.length) av += '<div class="aviso nar">📄 Ya mandaste un PDF con estos envíos: <b>' + esc(previos[0].nombre) + '</b> (' + diaTxt(previos[0].creado) + ' ' + hhmm(previos[0].creado) + ', ' + previos[0].n + ' en común).</div>';
   $('#pdfRes').innerHTML =
-    '<div class="mut">📄 ' + esc(P.nombre) + '</div>' +
+    '<div class="mut">📄 ' + esc(P.nombre) + (P.repes ? ' · ' + P.repes + ' PDF repetido' + (P.repes > 1 ? 's' : '') + ' (no se suma)' : '') + '</div>' +
     '<div style="display:flex;align-items:baseline;gap:8px;margin-top:2px"><b style="font-size:30px">' + P.envios.length + '</b><span style="font-size:16px">envíos</span>' +
       '<span class="mut" style="margin-left:auto">' + plural(P.paginas, 'página', 'páginas') + (P.paginas === P.envios.length ? ' ✓' : '') + '</span></div>' +
     (P.paginas !== P.envios.length ? '<div class="aviso nar">⚠ Hay ' + P.paginas + ' páginas y ' + P.envios.length + ' envíos: revisá que el PDF esté completo.</div>' : '') +

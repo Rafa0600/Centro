@@ -1,7 +1,7 @@
 // Mikra Centro de envío — service worker (para poder instalarla como app)
 // La página SIEMPRE se baja de internet (así nunca queda una versión vieja);
 // la copia guardada se usa solo si no hay conexión. La nube (workers.dev) y el lector de PDF (cdnjs) no se tocan.
-const CACHE = 'mikra-centro-v5';
+const CACHE = 'mikra-centro-v6';
 const ARCHIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
